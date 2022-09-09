@@ -1,3 +1,10 @@
+linux (5.18.16-1kali2) kali-experimental; urgency=medium
+
+  * Renable CIFS and weaker auth (see
+    https://bugzilla.kernel.org/show_bug.cgi?id=215375)
+
+ -- Sophie Brun <sophie@offensive-security.com>  Fri, 09 Sep 2022 11:59:31 +0200
+
 linux (5.18.16-1kali1) kali-experimental; urgency=medium
 
   * Sync with Debian.
