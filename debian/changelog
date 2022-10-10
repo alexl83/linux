@@ -1,3 +1,9 @@
+linux (5.19.11-1kali2) kali-experimental; urgency=medium
+
+  * Enable CIFS_WEAK_PW_HASH (for CIFS and weaker auth)
+
+ -- Sophie Brun <sophie@offensive-security.com>  Mon, 10 Oct 2022 15:05:48 +0200
+
 linux (5.19.11-1kali1) kali-experimental; urgency=medium
 
   * Sync with Debian
