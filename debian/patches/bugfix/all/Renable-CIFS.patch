@@ -22,8 +22,6 @@ https://bugzilla.kernel.org/attachment.cgi?id=301473&action=diff
  fs/cifs/smbencrypt.c  | 117 ++++++++++++++++++++++-
  14 files changed, 722 insertions(+), 5 deletions(-)
 
-diff --git a/fs/cifs/Kconfig b/fs/cifs/Kconfig
-index 3b7e3b9..bd810fd 100644
 --- a/fs/cifs/Kconfig
 +++ b/fs/cifs/Kconfig
 @@ -14,6 +14,7 @@ config CIFS
@@ -68,11 +66,9 @@ index 3b7e3b9..bd810fd 100644
  config CIFS_UPCALL
  	bool "Kerberos/SPNEGO advanced session setup"
  	depends on CIFS
-diff --git a/fs/cifs/cifs_debug.c b/fs/cifs/cifs_debug.c
-index 9d33481..71fde43 100644
 --- a/fs/cifs/cifs_debug.c
 +++ b/fs/cifs/cifs_debug.c
-@@ -249,6 +249,9 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
+@@ -247,6 +247,9 @@ static int cifs_debug_data_proc_show(str
  #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
  	seq_printf(m, ",ALLOW_INSECURE_LEGACY");
  #endif
@@ -82,7 +78,7 @@ index 9d33481..71fde43 100644
  #ifdef CONFIG_CIFS_POSIX
  	seq_printf(m, ",CIFS_POSIX");
  #endif
-@@ -936,6 +939,14 @@ cifs_security_flags_handle_must_flags(unsigned int *flags)
+@@ -917,6 +920,14 @@ cifs_security_flags_handle_must_flags(un
  		*flags = CIFSSEC_MUST_NTLMSSP;
  	else if ((*flags & CIFSSEC_MUST_NTLMV2) == CIFSSEC_MUST_NTLMV2)
  		*flags = CIFSSEC_MUST_NTLMV2;
@@ -97,11 +93,9 @@ index 9d33481..71fde43 100644
  
  	*flags |= signflags;
  }
-diff --git a/fs/cifs/cifs_swn.c b/fs/cifs/cifs_swn.c
-index 1e4c7cc..50f1699 100644
 --- a/fs/cifs/cifs_swn.c
 +++ b/fs/cifs/cifs_swn.c
-@@ -147,6 +147,8 @@ static int cifs_swn_send_register_message(struct cifs_swn_reg *swnreg)
+@@ -147,6 +147,8 @@ static int cifs_swn_send_register_messag
  			goto nlmsg_fail;
  		}
  		break;
@@ -110,11 +104,9 @@ index 1e4c7cc..50f1699 100644
  	case NTLMv2:
  	case RawNTLMSSP:
  		ret = cifs_swn_auth_info_ntlm(swnreg->tcon, skb);
-diff --git a/fs/cifs/cifsencrypt.c b/fs/cifs/cifsencrypt.c
-index 663cb9d..3ecc8c1 100644
 --- a/fs/cifs/cifsencrypt.c
 +++ b/fs/cifs/cifsencrypt.c
-@@ -253,6 +253,87 @@ int cifs_verify_signature(struct smb_rqst *rqst,
+@@ -252,6 +252,87 @@ int cifs_verify_signature(struct smb_rqs
  
  }
  
@@ -202,11 +194,9 @@ index 663cb9d..3ecc8c1 100644
  /* Build a proper attribute value/target info pairs blob.
   * Fill in netbios and dns domain name and workstation name
   * and client time (total five av pairs and + one end of fields indicator.
-diff --git a/fs/cifs/cifsfs.c b/fs/cifs/cifsfs.c
-index 26f0210..875254b 100644
 --- a/fs/cifs/cifsfs.c
 +++ b/fs/cifs/cifsfs.c
-@@ -449,9 +449,15 @@ cifs_show_security(struct seq_file *s, struct cifs_ses *ses)
+@@ -461,9 +461,15 @@ cifs_show_security(struct seq_file *s, s
  	seq_puts(s, ",sec=");
  
  	switch (ses->sectype) {
@@ -222,11 +212,9 @@ index 26f0210..875254b 100644
  	case Kerberos:
  		seq_puts(s, "krb5");
  		break;
-diff --git a/fs/cifs/cifsglob.h b/fs/cifs/cifsglob.h
-index 4247910..0828097 100644
 --- a/fs/cifs/cifsglob.h
 +++ b/fs/cifs/cifsglob.h
-@@ -133,6 +133,8 @@ enum tid_status_enum {
+@@ -143,6 +143,8 @@ enum tid_status_enum {
  
  enum securityEnum {
  	Unspecified = 0,	/* not specified */
@@ -235,7 +223,7 @@ index 4247910..0828097 100644
  	NTLMv2,			/* Legacy NTLM auth with NTLMv2 hash */
  	RawNTLMSSP,		/* NTLMSSP without SPNEGO, NTLMv2 hash */
  	Kerberos,		/* Kerberos via SPNEGO */
-@@ -657,6 +659,7 @@ struct TCP_Server_Info {
+@@ -671,6 +673,7 @@ struct TCP_Server_Info {
  	struct session_key session_key;
  	unsigned long lstrp; /* when we got last response from this server */
  	struct cifs_secmech secmech; /* crypto sec mech functs, descriptors */
@@ -243,7 +231,7 @@ index 4247910..0828097 100644
  #define	CIFS_NEGFLAVOR_UNENCAP	1	/* wct == 17, but no ext_sec */
  #define	CIFS_NEGFLAVOR_EXTENDED	2	/* wct == 17, ext_sec bit set */
  	char	negflavor;	/* NEGOTIATE response flavor */
-@@ -1773,8 +1776,16 @@ static inline bool is_retryable_error(int error)
+@@ -1838,8 +1841,16 @@ static inline bool is_retryable_error(in
  
  /* Security Flags: indicate type of session setup needed */
  #define   CIFSSEC_MAY_SIGN	0x00001
@@ -260,7 +248,7 @@ index 4247910..0828097 100644
  #define   CIFSSEC_MAY_SEAL	0x00040 /* not supported yet */
  #define   CIFSSEC_MAY_NTLMSSP	0x00080 /* raw ntlmssp with ntlmv2 */
  
-@@ -1782,19 +1793,32 @@ static inline bool is_retryable_error(int error)
+@@ -1847,19 +1858,32 @@ static inline bool is_retryable_error(in
  /* note that only one of the following can be set so the
  result of setting MUST flags more than once will be to
  require use of the stronger protocol */
@@ -295,7 +283,7 @@ index 4247910..0828097 100644
  /*
   *****************************************************************
   * All constants go here
-@@ -1960,6 +1984,10 @@ static inline char *get_security_type_str(enum securityEnum sectype)
+@@ -2068,6 +2092,10 @@ static inline char *get_security_type_st
  		return "Kerberos";
  	case NTLMv2:
  		return "NTLMv2";
@@ -306,8 +294,6 @@ index 4247910..0828097 100644
  	default:
  		return "Unknown";
  	}
-diff --git a/fs/cifs/cifspdu.h b/fs/cifs/cifspdu.h
-index aeba371..e77f6b9 100644
 --- a/fs/cifs/cifspdu.h
 +++ b/fs/cifs/cifspdu.h
 @@ -13,7 +13,13 @@
@@ -355,11 +341,9 @@ index aeba371..e77f6b9 100644
  #define READ_RAW_ENABLE 1
  #define WRITE_RAW_ENABLE 2
  #define RAW_ENABLE (READ_RAW_ENABLE | WRITE_RAW_ENABLE)
-diff --git a/fs/cifs/cifsproto.h b/fs/cifs/cifsproto.h
-index 0df3b24..398f8b7 100644
 --- a/fs/cifs/cifsproto.h
 +++ b/fs/cifs/cifsproto.h
-@@ -671,4 +671,14 @@ static inline int cifs_create_options(struct cifs_sb_info *cifs_sb, int options)
+@@ -684,4 +684,14 @@ static inline int cifs_create_options(st
  struct super_block *cifs_get_tcon_super(struct cifs_tcon *tcon);
  void cifs_put_tcon_super(struct super_block *sb);
  
@@ -374,11 +358,9 @@ index 0df3b24..398f8b7 100644
 +               bool encrypt, char *lnm_session_key);
 +#endif /* CIFS_WEAK_PW_HASH */
  #endif			/* _CIFSPROTO_H */
-diff --git a/fs/cifs/cifssmb.c b/fs/cifs/cifssmb.c
-index 47e927c..c3fa323 100644
 --- a/fs/cifs/cifssmb.c
 +++ b/fs/cifs/cifssmb.c
-@@ -41,6 +41,10 @@ static struct {
+@@ -40,6 +40,10 @@ static struct {
  	int index;
  	char *name;
  } protocols[] = {
@@ -389,7 +371,7 @@ index 47e927c..c3fa323 100644
  	{CIFS_PROT, "\2NT LM 0.12"},
  	{POSIX_PROT, "\2POSIX 2"},
  	{BAD_PROT, "\2"}
-@@ -50,6 +54,10 @@ static struct {
+@@ -49,6 +53,10 @@ static struct {
  	int index;
  	char *name;
  } protocols[] = {
@@ -400,7 +382,7 @@ index 47e927c..c3fa323 100644
  	{CIFS_PROT, "\2NT LM 0.12"},
  	{BAD_PROT, "\2"}
  };
-@@ -57,9 +65,17 @@ static struct {
+@@ -56,9 +64,17 @@ static struct {
  
  /* define the number of elements in the cifs dialect array */
  #ifdef CONFIG_CIFS_POSIX
@@ -417,8 +399,8 @@ index 47e927c..c3fa323 100644
 +#endif /* CONFIG_CIFS_WEAK_PW_HASH */
  #endif /* CIFS_POSIX */
  
- /*
-@@ -503,6 +519,89 @@ cifs_enable_signing(struct TCP_Server_Info *server, bool mnt_sign_required)
+ 
+@@ -410,6 +426,89 @@ decode_ext_sec_blob(struct cifs_ses *ses
  	return 0;
  }
  
@@ -508,7 +490,7 @@ index 47e927c..c3fa323 100644
  static bool
  should_set_ext_sec_flag(enum securityEnum sectype)
  {
-@@ -572,12 +671,16 @@ CIFSSMBNegotiate(const unsigned int xid,
+@@ -479,12 +578,16 @@ CIFSSMBNegotiate(const unsigned int xid,
  	server->dialect = le16_to_cpu(pSMBr->DialectIndex);
  	cifs_dbg(FYI, "Dialect: %d\n", server->dialect);
  	/* Check wct = 1 error case */
@@ -526,7 +508,7 @@ index 47e927c..c3fa323 100644
  	} else if (pSMBr->hdr.WordCount != 17) {
  		/* unknown wct */
  		rc = -EOPNOTSUPP;
-@@ -619,6 +722,7 @@ CIFSSMBNegotiate(const unsigned int xid,
+@@ -526,6 +629,7 @@ CIFSSMBNegotiate(const unsigned int xid,
  		server->capabilities &= ~CAP_EXTENDED_SECURITY;
  	}
  
@@ -534,11 +516,9 @@ index 47e927c..c3fa323 100644
  	if (!rc)
  		rc = cifs_enable_signing(server, ses->sign);
  neg_err_exit:
-diff --git a/fs/cifs/connect.c b/fs/cifs/connect.c
-index 409cad8..c454ddb 100644
 --- a/fs/cifs/connect.c
 +++ b/fs/cifs/connect.c
-@@ -3815,6 +3815,38 @@ CIFSTCon(const unsigned int xid, struct cifs_ses *ses,
+@@ -3926,6 +3926,38 @@ CIFSTCon(const unsigned int xid, struct
  		*bcc_ptr = 0; /* password is null byte */
  		bcc_ptr++;              /* skip password */
  		/* already aligned so no need to do it below */
@@ -577,11 +557,9 @@ index 409cad8..c454ddb 100644
  	}
  
  	if (ses->server->sign)
-diff --git a/fs/cifs/fs_context.c b/fs/cifs/fs_context.c
-index fbb0e98..f77b24c 100644
 --- a/fs/cifs/fs_context.c
 +++ b/fs/cifs/fs_context.c
-@@ -59,9 +59,12 @@ static const match_table_t cifs_secflavor_tokens = {
+@@ -59,9 +59,12 @@ static const match_table_t cifs_secflavo
  	{ Opt_sec_krb5p, "krb5p" },
  	{ Opt_sec_ntlmsspi, "ntlmsspi" },
  	{ Opt_sec_ntlmssp, "ntlmssp" },
@@ -594,7 +572,7 @@ index fbb0e98..f77b24c 100644
  	{ Opt_sec_none, "none" },
  
  	{ Opt_sec_err, NULL }
-@@ -221,12 +224,23 @@ cifs_parse_security_flavors(struct fs_context *fc, char *value, struct smb3_fs_c
+@@ -223,12 +226,23 @@ cifs_parse_security_flavors(struct fs_co
  	case Opt_sec_ntlmssp:
  		ctx->sectype = RawNTLMSSP;
  		break;
@@ -618,8 +596,6 @@ index fbb0e98..f77b24c 100644
  	case Opt_sec_none:
  		ctx->nullauth = 1;
  		break;
-diff --git a/fs/cifs/fs_context.h b/fs/cifs/fs_context.h
-index 3a156c1..e5b52a2 100644
 --- a/fs/cifs/fs_context.h
 +++ b/fs/cifs/fs_context.h
 @@ -47,8 +47,11 @@ enum cifs_sec_param {
@@ -634,11 +610,9 @@ index 3a156c1..e5b52a2 100644
  	Opt_sec_none,
  
  	Opt_sec_err
-diff --git a/fs/cifs/sess.c b/fs/cifs/sess.c
-index 83b9047..3a92193 100644
 --- a/fs/cifs/sess.c
 +++ b/fs/cifs/sess.c
-@@ -1009,16 +1009,30 @@ cifs_select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
+@@ -1137,16 +1137,30 @@ cifs_select_sectype(struct TCP_Server_In
  		}
  	case CIFS_NEGFLAVOR_UNENCAP:
  		switch (requested) {
@@ -670,7 +644,7 @@ index 83b9047..3a92193 100644
  	default:
  		return Unspecified;
  	}
-@@ -1140,6 +1154,232 @@ sess_sendreceive(struct sess_data *sess_data)
+@@ -1269,6 +1283,232 @@ sess_sendreceive(struct sess_data *sess_
  	return rc;
  }
  
@@ -903,7 +877,7 @@ index 83b9047..3a92193 100644
  static void
  sess_auth_ntlmv2(struct sess_data *sess_data)
  {
-@@ -1661,6 +1901,21 @@ static int select_sec(struct sess_data *sess_data)
+@@ -1790,6 +2030,21 @@ static int select_sec(struct sess_data *
  	}
  
  	switch (type) {
@@ -925,8 +899,6 @@ index 83b9047..3a92193 100644
  	case NTLMv2:
  		sess_data->func = sess_auth_ntlmv2;
  		break;
-diff --git a/fs/cifs/smbencrypt.c b/fs/cifs/smbencrypt.c
-index 4a04877..306af63 100644
 --- a/fs/cifs/smbencrypt.c
 +++ b/fs/cifs/smbencrypt.c
 @@ -18,6 +18,7 @@
@@ -1013,11 +985,10 @@ index 4a04877..306af63 100644
  mdfour(unsigned char *md4_hash, unsigned char *link_str, int link_len)
  {
  	int rc;
-@@ -64,6 +131,32 @@ mdfour(unsigned char *md4_hash, unsigned char *link_str, int link_len)
- 	return rc;
+@@ -65,6 +132,32 @@ mdfour_err:
  }
  
-+/*
+ /*
 +   This implements the X/Open SMB password encryption
 +   It takes a password, a 8 byte "crypt key" and puts 24 bytes of
 +   encrypted password into p24 */
@@ -1043,10 +1014,11 @@ index 4a04877..306af63 100644
 +	return rc;
 +}
 +
- /*
++/*
   * Creates the MD4 Hash of the users password in NT UNICODE.
   */
-@@ -89,3 +182,25 @@ E_md4hash(const unsigned char *passwd, unsigned char *p16,
+ 
+@@ -89,3 +182,25 @@ E_md4hash(const unsigned char *passwd, u
  
  	return rc;
  }
