@@ -15,7 +15,7 @@ signed-code: false
 install-stem: vmlinuz
 
 [relations]
-headers%gcc-11: linux-compiler-gcc-11-arm
+headers%gcc-12: linux-compiler-gcc-12-arm
 
 [marvell_description]
 hardware: Marvell Kirkwood/Orion
