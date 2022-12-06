@@ -1,3 +1,10 @@
+linux (6.0.10-2kali1) kali-experimental; urgency=medium
+
+  * Sync with Debian
+  * Disable CIFS and weaker auth + remove CIFS_WEAK_PW_HASH config
+
+ -- Sophie Brun <sophie@offensive-security.com>  Tue, 06 Dec 2022 14:50:59 +0100
+
 linux (6.0.10-2) unstable; urgency=medium
 
   * [x86] drm/i915: fix TLB invalidation for Gen12 video and compute engines
