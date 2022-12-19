@@ -1,3 +1,11 @@
+linux (6.0.12-1kali1) kali-experimental; urgency=medium
+
+  * Sync with Debian
+  * Revert "Add a patch to remove restrictions on ports"
+    (https://bugs.kali.org/view.php?id=7952)
+
+ -- Sophie Brun <sophie@offensive-security.com>  Mon, 19 Dec 2022 11:08:55 +0100
+
 linux (6.0.12-1) unstable; urgency=medium
 
   * New upstream stable update:
