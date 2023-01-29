@@ -8,7 +8,7 @@ tp3
 (dp4
 Vabiname
 p5
-V6
+V3
 p6
 sVignore-changes
 p7
@@ -301,7 +301,7 @@ tp154
 (dp155
 Vpart-long-up
 p156
-VThis kernel is not suitable for SMP (multi-processor,\u000amulti-core or hyper-threaded) systems.
+VThis kernel is not suitable for SMP (multi-processor, multi-core or hyper-threaded) systems.
 p157
 ss(Vimage
 p158
@@ -905,7 +905,7 @@ VARMv7 multiplatform compatible SoCs
 p484
 sVhardware-long
 p485
-VARMv7 multiplatform kernel. See\u000ahttps://wiki.debian.org/DebianKernel/ARMMP for details of supported\u000aplatforms
+VARMv7 multiplatform kernel. See https://wiki.debian.org/DebianKernel/ARMMP for details of supported platforms
 p486
 ss(Vdescription
 p487
@@ -920,7 +920,7 @@ VARMv7 multiplatform compatible SoCs supporting LPAE
 p492
 sVhardware-long
 p493
-VARMv7 multiplatform kernel supporting LPAE. See\u000ahttps://wiki.debian.org/DebianKernel/ARMMP for details of supported\u000aplatforms.
+VARMv7 multiplatform kernel supporting LPAE. See https://wiki.debian.org/DebianKernel/ARMMP for details of supported platforms.
 p494
 ss(Vbase
 p495
@@ -1098,7 +1098,7 @@ tp586
 (dp587
 Vpart-long-pae
 p588
-VThis kernel requires PAE (Physical Address Extension).\u000aThis feature is supported by the Intel Pentium Pro/II/III/4/4M/D, Xeon,\u000aCore and Atom; AMD Geode NX, Athlon (K7), Duron, Opteron, Sempron,\u000aTurion or Phenom; Transmeta Efficeon; VIA C7; and some other processors.
+VThis kernel requires PAE (Physical Address Extension). This feature is supported by the Intel Pentium Pro/II/III/4/4M/D, Xeon, Core and Atom; AMD Geode NX, Athlon (K7), Duron, Opteron, Sempron, Turion or Phenom; Transmeta Efficeon; VIA C7; and some other processors.
 p589
 ss(Vimage
 p590
@@ -3048,18 +3048,18 @@ tp1636
 (dp1637
 Vsource
 p1638
-V6.0.12-1
+V6.1.8-1
 p1639
 sVupstream
 p1640
-V6.0
+V6.1
 p1641
 sVabiname_base
 p1642
-V6.0.0
+V6.1.0
 p1643
 sVabiname
 p1644
-V6.0.0-6
+V6.1.0-3
 p1645
 ss.
