@@ -1,5 +1,5 @@
 e80543a1e2afc0e72e8a81a8f6717cd8  debian/bin/gencontrol.py
-ed6a98a6541781c63fe364afd795f485  debian/build/version-info
+fad7cddb145c68672f1cd900c664cce3  debian/build/version-info
 0a54c676b0235b7d0de9e944be0ccfe8  debian/templates/config.control.in
 08657c44620ad346d701df4f328b53d6  debian/templates/docs.control.in
 8047c973c6b13df1888490e43d88ec90  debian/templates/docs.meta.control.in
@@ -39,16 +39,16 @@ bdb7e8060e7b1168d7ea5d1d745a5aa9  debian/templates/sourcebin.meta.control.in
 a20d83421667bad21739041d4e743ed1  debian/templates/sourcebin.meta.maintscript.in
 678150139d44cb0a73fcfa60ad69f5e6  debian/templates/tools-unversioned.control.in
 568f629072d584e9a0eb1dc9d3a94749  debian/templates/tools-versioned.control.in
-177349c15373b7bc0fb8e3ce887c87a0  debian/config/defines
+32d32595af09cc752a47b05be4b2bfd5  debian/config/defines
 59a811890d2e7129bec940075850f11f  debian/config/alpha/defines
-50a266f02f776a641564999dddb3156c  debian/config/amd64/defines
-3af4991dcd65a21ebd0578f5f7fff3ee  debian/config/arm64/defines
+60569b1b4c618e2fe7b135f687d0f0d2  debian/config/amd64/defines
+bc35d767074baf305423437d049be85d  debian/config/arm64/defines
 3e673c1434c6132c73c0cfb4bfe38763  debian/config/arm64ilp32/defines
-9a87efe0e1bea9d8fe5d5f79b5da9e6e  debian/config/armel/defines
+2230215769e434cfdc1a341b8309d9c8  debian/config/armel/defines
 7fc7fe67de2f32bba0f58ecf9e803492  debian/config/armhf/defines
 366b94d652a66b437eabcd165bcc9610  debian/config/featureset-rt/defines
 59ebd7bb7c63bad2a85d588576ce2186  debian/config/hppa/defines
-1f244d90cd82a510782d361da36ebf2b  debian/config/i386/defines
+ea2f1ad5b530823d8d8735077665a3e3  debian/config/i386/defines
 97647ba6bbcc9331b17fef5c192e5a35  debian/config/ia64/defines
 f6eb4abf894006ec7f947d09d32f57b2  debian/config/m68k/defines
 59e251ad57f6996e725ca053d9ab41ae  debian/config/mips/defines
@@ -84,4 +84,4 @@ b4a45606f37c0d82a63779aa862528d9  debian/config/armhf/none/defines
 7146ff53fc4f9fbb49948225d8589b69  debian/config/i386/rt/defines
 1f2f888a9e94dfb519bb1eab12408d34  debian/config/riscv64/none/defines
 9ee7d439378fec0a34c2930f3e6478c5  debian/installer/kernel-versions
-512bcc38501cb33fd880c65217b0ecf1  debian/installer/package-list
+6acfd12bf0bbb112a7138da93736e655  debian/installer/package-list
