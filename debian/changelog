@@ -1,3 +1,9 @@
+linux (6.1.8-1kali2) kali-experimental; urgency=medium
+
+  * Re enable FB_HYPERV
+
+ -- Sophie Brun <sophie@offensive-security.com>  Fri, 17 Feb 2023 09:35:32 +0100
+
 linux (6.1.8-1kali1) kali-experimental; urgency=medium
 
   * Sync with Debian
