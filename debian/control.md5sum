@@ -1,5 +1,5 @@
 e80543a1e2afc0e72e8a81a8f6717cd8  debian/bin/gencontrol.py
-a0c5e817ee603dd7d0c5b9de838e3b69  debian/build/version-info
+10a0dec1a4b87b5cb7b8cc0a62a91ead  debian/build/version-info
 0a54c676b0235b7d0de9e944be0ccfe8  debian/templates/config.control.in
 08657c44620ad346d701df4f328b53d6  debian/templates/docs.control.in
 8047c973c6b13df1888490e43d88ec90  debian/templates/docs.meta.control.in
@@ -39,7 +39,7 @@ a20d83421667bad21739041d4e743ed1  debian/templates/sourcebin.meta.maintscript.in
 22a6018d71d4b5d0cb58493449454a30  debian/templates/source.control.in
 678150139d44cb0a73fcfa60ad69f5e6  debian/templates/tools-unversioned.control.in
 568f629072d584e9a0eb1dc9d3a94749  debian/templates/tools-versioned.control.in
-34e6bd86ac0e9e153fa56aaf9594cbdc  debian/config/defines
+03873662d99912458ef1b242dd9353fc  debian/config/defines
 59a811890d2e7129bec940075850f11f  debian/config/alpha/defines
 7cb805086b393916beae00d9d7755a96  debian/config/amd64/defines
 1b11f9853c049f8163bbaae2b5c54b79  debian/config/arm64/defines
