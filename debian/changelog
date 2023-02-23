@@ -1,3 +1,10 @@
+linux (6.1.12-1kali2) kali-experimental; urgency=medium
+
+  * Import patch for check-missing-firmware failing
+    (https://lore.kernel.org/all/be3457d82f4e44bb71a22b2b5db27b644a37b1e1.1677107277.git.lorenzo@kernel.org/)
+
+ -- Sophie Brun <sophie@offensive-security.com>  Thu, 23 Feb 2023 14:59:26 +0100
+
 linux (6.1.12-1kali1) kali-experimental; urgency=medium
 
   * Sync with Debian
