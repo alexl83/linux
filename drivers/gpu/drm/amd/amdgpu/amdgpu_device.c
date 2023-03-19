@@ -4012,7 +4012,8 @@ void amdgpu_device_fini_hw(struct amdgpu_device *adev)
 
 	amdgpu_gart_dummy_page_fini(adev);
 
-	amdgpu_device_unmap_mmio(adev);
+	if (drm_dev_is_unplugged(adev_to_drm(adev)))
+		amdgpu_device_unmap_mmio(adev);
 
 }
 
@@ -4247,6 +4248,9 @@ int amdgpu_device_resume(struct drm_device *dev, bool fbcon)
 	dev->dev->power.disable_depth--;
 #endif
 	adev->in_suspend = false;
+
+	if (adev->enable_mes)
+		amdgpu_mes_self_test(adev);
 
 	if (amdgpu_acpi_smart_shift_update(dev, AMDGPU_SS_DEV_D0))
 		DRM_WARN("smart shift update failed\n");
