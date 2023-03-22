@@ -1,3 +1,11 @@
+linux (6.1.20-1kali1) kali-experimental; urgency=medium
+
+  * Sync with Debian
+  * Remove bugfix/all/handle-missing-firmware-mt79-devices.patch (merged
+    upstream)
+
+ -- Sophie Brun <sophie@offensive-security.com>  Wed, 22 Mar 2023 14:16:49 +0100
+
 linux (6.1.20-1) unstable; urgency=medium
 
   * New upstream stable update:
