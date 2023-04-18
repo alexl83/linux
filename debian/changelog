@@ -1,3 +1,9 @@
+linux (6.1.20-2kali1) kali-experimental; urgency=medium
+
+  * Sync with Debian
+
+ -- Sophie Brun <sophie@offensive-security.com>  Tue, 18 Apr 2023 11:48:12 +0200
+
 linux (6.1.20-2) unstable; urgency=medium
 
   [ Hans van Kranenburg ]
