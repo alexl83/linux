@@ -1,3 +1,9 @@
+linux (6.1.27-1kali2) kali-experimental; urgency=medium
+
+  * Enable CONFIG_IMA_KEYRINGS_PERMIT_SIGNED_BY_BUILTIN_OR_SECONDARY
+
+ -- Arnaud Rebillout <arnaudr@kali.org>  Wed, 31 May 2023 08:10:28 +0700
+
 linux (6.1.27-1kali1) kali-experimental; urgency=medium
 
   * Sync with Debian
