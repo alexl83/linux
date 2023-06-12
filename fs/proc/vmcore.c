@@ -582,8 +582,7 @@ static int mmap_vmcore(struct file *file, struct vm_area_struct *vma)
 	if (vma->vm_flags & (VM_WRITE | VM_EXEC))
 		return -EPERM;
 
-	vma->vm_flags &= ~(VM_MAYWRITE | VM_MAYEXEC);
-	vma->vm_flags |= VM_MIXEDMAP;
+	vm_flags_mod(vma, VM_MIXEDMAP, VM_MAYWRITE | VM_MAYEXEC);
 	vma->vm_ops = &vmcore_mmap_ops;
 
 	len = 0;
@@ -1567,6 +1566,7 @@ static int __init vmcore_init(void)
 		return rc;
 	rc = parse_crash_elf_headers();
 	if (rc) {
+		elfcorehdr_free(elfcorehdr_addr);
 		pr_warn("Kdump: vmcore not initialized\n");
 		return rc;
 	}

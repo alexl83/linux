@@ -36,6 +36,7 @@
 #include <regex.h>
 
 #include <linux/ctype.h>
+#include <traceevent/event-parse.h>
 
 static int	kmem_slab;
 static int	kmem_page;
@@ -652,7 +653,6 @@ static const struct {
 	{ "__GFP_HIGHMEM",		"HM" },
 	{ "GFP_DMA32",			"D32" },
 	{ "__GFP_HIGH",			"H" },
-	{ "__GFP_ATOMIC",		"_A" },
 	{ "__GFP_IO",			"I" },
 	{ "__GFP_FS",			"F" },
 	{ "__GFP_NOWARN",		"NWR" },

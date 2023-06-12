@@ -128,13 +128,13 @@ struct qca_memdump_event_hdr {
 	__u8    evt;
 	__u8    plen;
 	__u16   opcode;
-	__u16   seq_no;
+	__le16   seq_no;
 	__u8    reserved;
 } __packed;
 
 
 struct qca_dump_size {
-	u32 dump_size;
+	__le32 dump_size;
 } __packed;
 
 struct qca_data {
@@ -696,9 +696,15 @@ static int qca_close(struct hci_uart *hu)
 	skb_queue_purge(&qca->tx_wait_q);
 	skb_queue_purge(&qca->txq);
 	skb_queue_purge(&qca->rx_memdump_q);
+	/*
+	 * Shut the timers down so they can't be rearmed when
+	 * destroy_workqueue() drains pending work which in turn might try
+	 * to arm a timer.  After shutdown rearm attempts are silently
+	 * ignored by the timer core code.
+	 */
+	timer_shutdown_sync(&qca->tx_idle_timer);
+	timer_shutdown_sync(&qca->wake_retrans_timer);
 	destroy_workqueue(qca->workqueue);
-	del_timer_sync(&qca->tx_idle_timer);
-	del_timer_sync(&qca->wake_retrans_timer);
 	qca->hu = NULL;
 
 	kfree_skb(qca->rx_skb);
@@ -1766,7 +1772,8 @@ retry:
 		qca_debugfs_init(hdev);
 		hu->hdev->hw_error = qca_hw_error;
 		hu->hdev->cmd_timeout = qca_cmd_timeout;
-		hu->hdev->wakeup = qca_wakeup;
+		if (device_can_wakeup(hu->serdev->ctrl->dev.parent))
+			hu->hdev->wakeup = qca_wakeup;
 	} else if (ret == -ENOENT) {
 		/* No patch/nvm-config found, run with original fw/config */
 		set_bit(QCA_ROM_FW, &qca->flags);
