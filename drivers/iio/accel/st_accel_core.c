@@ -929,6 +929,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LIS2HH12_ACCEL_DEV_NAME,
+			[1] = LSM303C_ACCEL_DEV_NAME,
 		},
 		.ch = (struct iio_chan_spec *)st_accel_16bit_channels,
 		.odr = {
@@ -1289,12 +1290,12 @@ static int apply_acpi_orientation(struct iio_dev *indio_dev)
 
 	adev = ACPI_COMPANION(indio_dev->dev.parent);
 	if (!adev)
-		return 0;
+		return -ENXIO;
 
 	/* Read _ONT data, which should be a package of 6 integers. */
 	status = acpi_evaluate_object(adev->handle, "_ONT", NULL, &buffer);
 	if (status == AE_NOT_FOUND) {
-		return 0;
+		return -ENXIO;
 	} else if (ACPI_FAILURE(status)) {
 		dev_warn(&indio_dev->dev, "failed to execute _ONT: %d\n",
 			 status);

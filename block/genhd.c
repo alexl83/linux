@@ -502,10 +502,6 @@ int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 		goto out_put_holder_dir;
 	}
 
-	ret = bd_register_pending_holders(disk);
-	if (ret < 0)
-		goto out_put_slave_dir;
-
 	ret = blk_register_queue(disk);
 	if (ret)
 		goto out_put_slave_dir;
@@ -589,6 +585,11 @@ void blk_mark_disk_dead(struct gendisk *disk)
 {
 	set_bit(GD_DEAD, &disk->state);
 	blk_queue_start_drain(disk->queue);
+
+	/*
+	 * Stop buffered writers from dirtying pages that can't be written out.
+	 */
+	set_capacity_and_notify(disk, 0);
 }
 EXPORT_SYMBOL_GPL(blk_mark_disk_dead);
 
@@ -673,7 +674,9 @@ void del_gendisk(struct gendisk *disk)
 
 	blk_sync_queue(q);
 	blk_flush_integrity();
-	blk_mq_cancel_work_sync(q);
+
+	if (queue_is_mq(q))
+		blk_mq_cancel_work_sync(q);
 
 	blk_mq_quiesce_queue(q);
 	if (q->elevator) {
@@ -1038,9 +1041,8 @@ ssize_t part_inflight_show(struct device *dev, struct device_attribute *attr,
 static ssize_t disk_capability_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
-	struct gendisk *disk = dev_to_disk(dev);
-
-	return sprintf(buf, "%x\n", disk->flags);
+	dev_warn_once(dev, "the capability attribute has been deprecated.\n");
+	return sprintf(buf, "0\n");
 }
 
 static ssize_t disk_alignment_offset_show(struct device *dev,
@@ -1211,9 +1213,9 @@ static void disk_release(struct device *dev)
 	iput(disk->part0->bd_inode);	/* frees the disk */
 }
 
-static int block_uevent(struct device *dev, struct kobj_uevent_env *env)
+static int block_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct gendisk *disk = dev_to_disk(dev);
+	const struct gendisk *disk = dev_to_disk(dev);
 
 	return add_uevent_var(env, "DISKSEQ=%llu", disk->diskseq);
 }
@@ -1223,7 +1225,7 @@ struct class block_class = {
 	.dev_uevent	= block_uevent,
 };
 
-static char *block_devnode(struct device *dev, umode_t *mode,
+static char *block_devnode(const struct device *dev, umode_t *mode,
 			   kuid_t *uid, kgid_t *gid)
 {
 	struct gendisk *disk = dev_to_disk(dev);
@@ -1442,7 +1444,7 @@ struct gendisk *__blk_alloc_disk(int node, struct lock_class_key *lkclass)
 	struct request_queue *q;
 	struct gendisk *disk;
 
-	q = blk_alloc_queue(node, false);
+	q = blk_alloc_queue(node);
 	if (!q)
 		return NULL;
 
