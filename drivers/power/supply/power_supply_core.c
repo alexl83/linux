@@ -875,7 +875,6 @@ EXPORT_SYMBOL_GPL(power_supply_temp2resist_simple);
  * power_supply_vbat2ri() - find the battery internal resistance
  * from the battery voltage
  * @info: The battery information container
- * @table: Pointer to battery resistance temperature table
  * @vbat_uv: The battery voltage in microvolt
  * @charging: If we are charging (true) or not (false)
  *
@@ -1208,12 +1207,12 @@ __power_supply_register(struct device *parent,
 	struct power_supply *psy;
 	int rc;
 
+	if (!desc || !desc->name || !desc->properties || !desc->num_properties)
+		return ERR_PTR(-EINVAL);
+
 	if (!parent)
 		pr_warn("%s: Expected proper parent device for '%s'\n",
 			__func__, desc->name);
-
-	if (!desc || !desc->name || !desc->properties || !desc->num_properties)
-		return ERR_PTR(-EINVAL);
 
 	if (psy_has_property(desc, POWER_SUPPLY_PROP_USB_TYPE) &&
 	    (!desc->usb_types || !desc->num_usb_types))

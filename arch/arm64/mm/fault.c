@@ -480,8 +480,8 @@ static void do_bad_area(unsigned long far, unsigned long esr,
 	}
 }
 
-#define VM_FAULT_BADMAP		0x010000
-#define VM_FAULT_BADACCESS	0x020000
+#define VM_FAULT_BADMAP		((__force vm_fault_t)0x010000)
+#define VM_FAULT_BADACCESS	((__force vm_fault_t)0x020000)
 
 static vm_fault_t __do_page_fault(struct mm_struct *mm, unsigned long addr,
 				  unsigned int mm_flags, unsigned long vm_flags,
@@ -925,7 +925,7 @@ NOKPROBE_SYMBOL(do_debug_exception);
 /*
  * Used during anonymous page fault handling.
  */
-struct page *alloc_zeroed_user_highpage_movable(struct vm_area_struct *vma,
+struct folio *vma_alloc_zeroed_movable_folio(struct vm_area_struct *vma,
 						unsigned long vaddr)
 {
 	gfp_t flags = GFP_HIGHUSER_MOVABLE | __GFP_ZERO;
@@ -938,11 +938,13 @@ struct page *alloc_zeroed_user_highpage_movable(struct vm_area_struct *vma,
 	if (vma->vm_flags & VM_MTE)
 		flags |= __GFP_ZEROTAGS;
 
-	return alloc_page_vma(flags, vma, vaddr);
+	return vma_alloc_folio(flags, 0, vma, vaddr, false);
 }
 
 void tag_clear_highpage(struct page *page)
 {
+	/* Newly allocated page, shouldn't have been tagged yet */
+	WARN_ON_ONCE(!try_page_mte_tagging(page));
 	mte_zero_clear_page_tags(page_address(page));
 	set_page_mte_tagged(page);
 }

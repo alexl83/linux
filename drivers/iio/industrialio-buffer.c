@@ -510,13 +510,14 @@ static ssize_t iio_scan_el_store(struct device *dev,
 	int ret;
 	bool state;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	struct iio_buffer *buffer = this_attr->buffer;
 
 	ret = kstrtobool(buf, &state);
 	if (ret < 0)
 		return ret;
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&iio_dev_opaque->mlock);
 	if (iio_buffer_is_active(buffer)) {
 		ret = -EBUSY;
 		goto error_ret;
@@ -535,7 +536,7 @@ static ssize_t iio_scan_el_store(struct device *dev,
 	}
 
 error_ret:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&iio_dev_opaque->mlock);
 
 	return ret < 0 ? ret : len;
 
@@ -557,6 +558,7 @@ static ssize_t iio_scan_el_ts_store(struct device *dev,
 {
 	int ret;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 	bool state;
 
@@ -564,14 +566,14 @@ static ssize_t iio_scan_el_ts_store(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&iio_dev_opaque->mlock);
 	if (iio_buffer_is_active(buffer)) {
 		ret = -EBUSY;
 		goto error_ret;
 	}
 	buffer->scan_timestamp = state;
 error_ret:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&iio_dev_opaque->mlock);
 
 	return ret ? ret : len;
 }
@@ -645,6 +647,7 @@ static ssize_t length_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 	unsigned int val;
 	int ret;
@@ -656,7 +659,7 @@ static ssize_t length_store(struct device *dev, struct device_attribute *attr,
 	if (val == buffer->length)
 		return len;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&iio_dev_opaque->mlock);
 	if (iio_buffer_is_active(buffer)) {
 		ret = -EBUSY;
 	} else {
@@ -668,7 +671,7 @@ static ssize_t length_store(struct device *dev, struct device_attribute *attr,
 	if (buffer->length && buffer->length < buffer->watermark)
 		buffer->watermark = buffer->length;
 out:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&iio_dev_opaque->mlock);
 
 	return ret ? ret : len;
 }
@@ -1259,7 +1262,7 @@ int iio_update_buffers(struct iio_dev *indio_dev,
 		return -EINVAL;
 
 	mutex_lock(&iio_dev_opaque->info_exist_lock);
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&iio_dev_opaque->mlock);
 
 	if (insert_buffer && iio_buffer_is_active(insert_buffer))
 		insert_buffer = NULL;
@@ -1280,7 +1283,7 @@ int iio_update_buffers(struct iio_dev *indio_dev,
 	ret = __iio_update_buffers(indio_dev, insert_buffer, remove_buffer);
 
 out_unlock:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&iio_dev_opaque->mlock);
 	mutex_unlock(&iio_dev_opaque->info_exist_lock);
 
 	return ret;
@@ -1299,6 +1302,7 @@ static ssize_t enable_store(struct device *dev, struct device_attribute *attr,
 	int ret;
 	bool requested_state;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 	bool inlist;
 
@@ -1306,7 +1310,7 @@ static ssize_t enable_store(struct device *dev, struct device_attribute *attr,
 	if (ret < 0)
 		return ret;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&iio_dev_opaque->mlock);
 
 	/* Find out if it is in the list */
 	inlist = iio_buffer_is_active(buffer);
@@ -1320,7 +1324,7 @@ static ssize_t enable_store(struct device *dev, struct device_attribute *attr,
 		ret = __iio_update_buffers(indio_dev, NULL, buffer);
 
 done:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&iio_dev_opaque->mlock);
 	return (ret < 0) ? ret : len;
 }
 
@@ -1337,6 +1341,7 @@ static ssize_t watermark_store(struct device *dev,
 			       const char *buf, size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	struct iio_buffer *buffer = to_iio_dev_attr(attr)->buffer;
 	unsigned int val;
 	int ret;
@@ -1347,7 +1352,7 @@ static ssize_t watermark_store(struct device *dev,
 	if (!val)
 		return -EINVAL;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&iio_dev_opaque->mlock);
 
 	if (val > buffer->length) {
 		ret = -EINVAL;
@@ -1361,7 +1366,7 @@ static ssize_t watermark_store(struct device *dev,
 
 	buffer->watermark = val;
 out:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&iio_dev_opaque->mlock);
 
 	return ret ? ret : len;
 }
@@ -1603,6 +1608,7 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 	struct iio_dev_attr *p;
+	const struct iio_dev_attr *id_attr;
 	struct attribute **attr;
 	int ret, i, attrn, scan_el_attrcount, buffer_attrcount;
 	const struct iio_chan_spec *channels;
@@ -1612,6 +1618,7 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 		while (buffer->attrs[buffer_attrcount] != NULL)
 			buffer_attrcount++;
 	}
+	buffer_attrcount += ARRAY_SIZE(iio_buffer_attrs);
 
 	scan_el_attrcount = 0;
 	INIT_LIST_HEAD(&buffer->buffer_attr_list);
@@ -1654,7 +1661,7 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 		}
 	}
 
-	attrn = buffer_attrcount + scan_el_attrcount + ARRAY_SIZE(iio_buffer_attrs);
+	attrn = buffer_attrcount + scan_el_attrcount;
 	attr = kcalloc(attrn + 1, sizeof(*attr), GFP_KERNEL);
 	if (!attr) {
 		ret = -ENOMEM;
@@ -1669,10 +1676,11 @@ static int __iio_buffer_alloc_sysfs_and_mask(struct iio_buffer *buffer,
 		attr[2] = &dev_attr_watermark_ro.attr;
 
 	if (buffer->attrs)
-		memcpy(&attr[ARRAY_SIZE(iio_buffer_attrs)], buffer->attrs,
-		       sizeof(struct attribute *) * buffer_attrcount);
+		for (i = 0, id_attr = buffer->attrs[i];
+		     (id_attr = buffer->attrs[i]); i++)
+			attr[ARRAY_SIZE(iio_buffer_attrs) + i] =
+				(struct attribute *)&id_attr->dev_attr.attr;
 
-	buffer_attrcount += ARRAY_SIZE(iio_buffer_attrs);
 	buffer->buffer_group.attrs = attr;
 
 	for (i = 0; i < buffer_attrcount; i++) {

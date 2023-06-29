@@ -125,6 +125,33 @@ struct ftrace_ops global_ops;
 void ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
 			  struct ftrace_ops *op, struct ftrace_regs *fregs);
 
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS
+/*
+ * Stub used to invoke the list ops without requiring a separate trampoline.
+ */
+const struct ftrace_ops ftrace_list_ops = {
+	.func	= ftrace_ops_list_func,
+	.flags	= FTRACE_OPS_FL_STUB,
+};
+
+static void ftrace_ops_nop_func(unsigned long ip, unsigned long parent_ip,
+				struct ftrace_ops *op,
+				struct ftrace_regs *fregs)
+{
+	/* do nothing */
+}
+
+/*
+ * Stub used when a call site is disabled. May be called transiently by threads
+ * which have made it into ftrace_caller but haven't yet recovered the ops at
+ * the point the call site is disabled.
+ */
+const struct ftrace_ops ftrace_nop_ops = {
+	.func	= ftrace_ops_nop_func,
+	.flags  = FTRACE_OPS_FL_STUB,
+};
+#endif
+
 static inline void ftrace_ops_init(struct ftrace_ops *ops)
 {
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -163,7 +190,7 @@ static void ftrace_sync_ipi(void *data)
 static ftrace_func_t ftrace_ops_get_list_func(struct ftrace_ops *ops)
 {
 	/*
-	 * If this is a dynamic, RCU, or per CPU ops, or we force list func,
+	 * If this is a dynamic or RCU ops, or we force list func,
 	 * then it needs to call the list anyway.
 	 */
 	if (ops->flags & (FTRACE_OPS_FL_DYNAMIC | FTRACE_OPS_FL_RCU) ||
@@ -1820,6 +1847,18 @@ static bool __ftrace_hash_rec_update(struct ftrace_ops *ops,
 			 * if rec count is zero.
 			 */
 		}
+
+		/*
+		 * If the rec has a single associated ops, and ops->func can be
+		 * called directly, allow the call site to call via the ops.
+		 */
+		if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_CALL_OPS) &&
+		    ftrace_rec_count(rec) == 1 &&
+		    ftrace_ops_get_func(ops) == ops->func)
+			rec->flags |= FTRACE_FL_CALL_OPS;
+		else
+			rec->flags &= ~FTRACE_FL_CALL_OPS;
+
 		count++;
 
 		/* Must match FTRACE_UPDATE_CALLS in ftrace_modify_all_code() */
@@ -2114,8 +2153,9 @@ void ftrace_bug(int failed, struct dyn_ftrace *rec)
 		struct ftrace_ops *ops = NULL;
 
 		pr_info("ftrace record flags: %lx\n", rec->flags);
-		pr_cont(" (%ld)%s", ftrace_rec_count(rec),
-			rec->flags & FTRACE_FL_REGS ? " R" : "  ");
+		pr_cont(" (%ld)%s%s", ftrace_rec_count(rec),
+			rec->flags & FTRACE_FL_REGS ? " R" : "  ",
+			rec->flags & FTRACE_FL_CALL_OPS ? " O" : "  ");
 		if (rec->flags & FTRACE_FL_TRAMP_EN) {
 			ops = ftrace_find_tramp_ops_any(rec);
 			if (ops) {
@@ -2183,6 +2223,7 @@ static int ftrace_check_record(struct dyn_ftrace *rec, bool enable, bool update)
 		 * want the direct enabled (it will be done via the
 		 * direct helper). But if DIRECT_EN is set, and
 		 * the count is not one, we need to clear it.
+		 *
 		 */
 		if (ftrace_rec_count(rec) == 1) {
 			if (!(rec->flags & FTRACE_FL_DIRECT) !=
@@ -2190,6 +2231,19 @@ static int ftrace_check_record(struct dyn_ftrace *rec, bool enable, bool update)
 				flag |= FTRACE_FL_DIRECT;
 		} else if (rec->flags & FTRACE_FL_DIRECT_EN) {
 			flag |= FTRACE_FL_DIRECT;
+		}
+
+		/*
+		 * Ops calls are special, as count matters.
+		 * As with direct calls, they must only be enabled when count
+		 * is one, otherwise they'll be handled via the list ops.
+		 */
+		if (ftrace_rec_count(rec) == 1) {
+			if (!(rec->flags & FTRACE_FL_CALL_OPS) !=
+			    !(rec->flags & FTRACE_FL_CALL_OPS_EN))
+				flag |= FTRACE_FL_CALL_OPS;
+		} else if (rec->flags & FTRACE_FL_CALL_OPS_EN) {
+			flag |= FTRACE_FL_CALL_OPS;
 		}
 	}
 
@@ -2235,6 +2289,21 @@ static int ftrace_check_record(struct dyn_ftrace *rec, bool enable, bool update)
 					rec->flags &= ~FTRACE_FL_DIRECT_EN;
 				}
 			}
+
+			if (flag & FTRACE_FL_CALL_OPS) {
+				if (ftrace_rec_count(rec) == 1) {
+					if (rec->flags & FTRACE_FL_CALL_OPS)
+						rec->flags |= FTRACE_FL_CALL_OPS_EN;
+					else
+						rec->flags &= ~FTRACE_FL_CALL_OPS_EN;
+				} else {
+					/*
+					 * Can only call directly if there's
+					 * only one set of associated ops.
+					 */
+					rec->flags &= ~FTRACE_FL_CALL_OPS_EN;
+				}
+			}
 		}
 
 		/*
@@ -2264,7 +2333,8 @@ static int ftrace_check_record(struct dyn_ftrace *rec, bool enable, bool update)
 			 * and REGS states. The _EN flags must be disabled though.
 			 */
 			rec->flags &= ~(FTRACE_FL_ENABLED | FTRACE_FL_TRAMP_EN |
-					FTRACE_FL_REGS_EN | FTRACE_FL_DIRECT_EN);
+					FTRACE_FL_REGS_EN | FTRACE_FL_DIRECT_EN |
+					FTRACE_FL_CALL_OPS_EN);
 	}
 
 	ftrace_bug_type = FTRACE_BUG_NOP;
@@ -2437,6 +2507,25 @@ ftrace_find_tramp_ops_new(struct dyn_ftrace *rec)
 	return NULL;
 }
 
+struct ftrace_ops *
+ftrace_find_unique_ops(struct dyn_ftrace *rec)
+{
+	struct ftrace_ops *op, *found = NULL;
+	unsigned long ip = rec->ip;
+
+	do_for_each_ftrace_op(op, ftrace_ops_list) {
+
+		if (hash_contains_ip(ip, op->func_hash)) {
+			if (found)
+				return NULL;
+			found = op;
+		}
+
+	} while_for_each_ftrace_op(op);
+
+	return found;
+}
+
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 /* Protected by rcu_tasks for reading, and direct_mutex for writing */
 static struct ftrace_hash *direct_functions = EMPTY_HASH;
@@ -2494,17 +2583,16 @@ ftrace_add_rec_direct(unsigned long ip, unsigned long addr,
 static void call_direct_funcs(unsigned long ip, unsigned long pip,
 			      struct ftrace_ops *ops, struct ftrace_regs *fregs)
 {
-	struct pt_regs *regs = ftrace_get_regs(fregs);
 	unsigned long addr;
 
 	addr = ftrace_find_rec_direct(ip);
 	if (!addr)
 		return;
 
-	arch_ftrace_set_direct_caller(regs, addr);
+	arch_ftrace_set_direct_caller(fregs, addr);
 }
 
-struct ftrace_ops direct_ops = {
+static struct ftrace_ops direct_ops = {
 	.func		= call_direct_funcs,
 	.flags		= FTRACE_OPS_FL_DIRECT | FTRACE_OPS_FL_SAVE_REGS
 			  | FTRACE_OPS_FL_PERMANENT,
@@ -2769,6 +2857,19 @@ void __weak ftrace_arch_code_modify_post_process(void)
 {
 }
 
+static int update_ftrace_func(ftrace_func_t func)
+{
+	static ftrace_func_t save_func;
+
+	/* Avoid updating if it hasn't changed */
+	if (func == save_func)
+		return 0;
+
+	save_func = func;
+
+	return ftrace_update_ftrace_func(func);
+}
+
 void ftrace_modify_all_code(int command)
 {
 	int update = command & FTRACE_UPDATE_TRACE_FUNC;
@@ -2789,7 +2890,7 @@ void ftrace_modify_all_code(int command)
 	 * traced.
 	 */
 	if (update) {
-		err = ftrace_update_ftrace_func(ftrace_ops_list_func);
+		err = update_ftrace_func(ftrace_ops_list_func);
 		if (FTRACE_WARN_ON(err))
 			return;
 	}
@@ -2805,7 +2906,7 @@ void ftrace_modify_all_code(int command)
 		/* If irqs are disabled, we are in stop machine */
 		if (!irqs_disabled())
 			smp_call_function(ftrace_sync_ipi, NULL, 1);
-		err = ftrace_update_ftrace_func(ftrace_trace_function);
+		err = update_ftrace_func(ftrace_trace_function);
 		if (FTRACE_WARN_ON(err))
 			return;
 	}
@@ -3077,8 +3178,6 @@ out:
 	/*
 	 * Dynamic ops may be freed, we must make sure that all
 	 * callers are done before leaving this function.
-	 * The same goes for freeing the per_cpu data of the per_cpu
-	 * ops.
 	 */
 	if (ops->flags & FTRACE_OPS_FL_DYNAMIC) {
 		/*
@@ -3776,11 +3875,12 @@ static int t_show(struct seq_file *m, void *v)
 	if (iter->flags & FTRACE_ITER_ENABLED) {
 		struct ftrace_ops *ops;
 
-		seq_printf(m, " (%ld)%s%s%s",
+		seq_printf(m, " (%ld)%s%s%s%s",
 			   ftrace_rec_count(rec),
 			   rec->flags & FTRACE_FL_REGS ? " R" : "  ",
 			   rec->flags & FTRACE_FL_IPMODIFY ? " I" : "  ",
-			   rec->flags & FTRACE_FL_DIRECT ? " D" : "  ");
+			   rec->flags & FTRACE_FL_DIRECT ? " D" : "  ",
+			   rec->flags & FTRACE_FL_CALL_OPS ? " O" : "  ");
 		if (rec->flags & FTRACE_FL_TRAMP_EN) {
 			ops = ftrace_find_tramp_ops_any(rec);
 			if (ops) {
@@ -3795,6 +3895,15 @@ static int t_show(struct seq_file *m, void *v)
 				seq_puts(m, "\ttramp: ERROR!");
 		} else {
 			add_trampoline_func(m, NULL, rec);
+		}
+		if (rec->flags & FTRACE_FL_CALL_OPS_EN) {
+			ops = ftrace_find_unique_ops(rec);
+			if (ops) {
+				seq_printf(m, "\tops: %pS (%pS)",
+					   ops, ops->func);
+			} else {
+				seq_puts(m, "\tops: ERROR!");
+			}
 		}
 		if (rec->flags & FTRACE_FL_DIRECT) {
 			unsigned long direct;
@@ -4199,6 +4308,7 @@ match_records(struct ftrace_hash *hash, char *func, int len, char *mod)
 			}
 			found = 1;
 		}
+		cond_resched();
 	} while_for_each_ftrace_rec();
  out_unlock:
 	mutex_unlock(&ftrace_lock);
@@ -7544,8 +7654,6 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
 		/*
 		 * Check the following for each ops before calling their func:
 		 *  if RCU flag is set, then rcu_is_watching() must be true
-		 *  if PER_CPU is set, then ftrace_function_local_disable()
-		 *                          must be false
 		 *  Otherwise test if the ip matches the ops filter
 		 *
 		 * If any of the above fails then the op->func() is not executed.
@@ -7595,8 +7703,8 @@ NOKPROBE_SYMBOL(arch_ftrace_ops_list_func);
 
 /*
  * If there's only one function registered but it does not support
- * recursion, needs RCU protection and/or requires per cpu handling, then
- * this function will be called by the mcount trampoline.
+ * recursion, needs RCU protection, then this function will be called
+ * by the mcount trampoline.
  */
 static void ftrace_ops_assist_func(unsigned long ip, unsigned long parent_ip,
 				   struct ftrace_ops *op, struct ftrace_regs *fregs)
@@ -8283,6 +8391,10 @@ struct kallsyms_data {
 	size_t found;
 };
 
+/* This function gets called for all kernel and module symbols
+ * and returns 1 in case we resolved all the requested symbols,
+ * 0 otherwise.
+ */
 static int kallsyms_callback(void *data, const char *name,
 			     struct module *mod, unsigned long addr)
 {
@@ -8325,17 +8437,19 @@ static int kallsyms_callback(void *data, const char *name,
 int ftrace_lookup_symbols(const char **sorted_syms, size_t cnt, unsigned long *addrs)
 {
 	struct kallsyms_data args;
-	int err;
+	int found_all;
 
 	memset(addrs, 0, sizeof(*addrs) * cnt);
 	args.addrs = addrs;
 	args.syms = sorted_syms;
 	args.cnt = cnt;
 	args.found = 0;
-	err = kallsyms_on_each_symbol(kallsyms_callback, &args);
-	if (err < 0)
-		return err;
-	return args.found == args.cnt ? 0 : -ESRCH;
+
+	found_all = kallsyms_on_each_symbol(kallsyms_callback, &args);
+	if (found_all)
+		return 0;
+	found_all = module_kallsyms_on_each_symbol(NULL, kallsyms_callback, &args);
+	return found_all ? 0 : -ESRCH;
 }
 
 #ifdef CONFIG_SYSCTL

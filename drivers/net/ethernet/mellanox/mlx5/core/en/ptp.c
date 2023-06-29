@@ -175,6 +175,8 @@ static bool mlx5e_ptp_poll_ts_cq(struct mlx5e_cq *cq, int budget)
 	/* ensure cq space is freed before enabling more cqes */
 	wmb();
 
+	mlx5e_txqsq_wake(&ptpsq->txqsq);
+
 	return work_done == budget;
 }
 
@@ -790,8 +792,8 @@ void mlx5e_ptp_activate_channel(struct mlx5e_ptp *c)
 	if (test_bit(MLX5E_PTP_STATE_RX, c->state)) {
 		mlx5e_ptp_rx_set_fs(c->priv);
 		mlx5e_activate_rq(&c->rq);
-		mlx5e_trigger_napi_sched(&c->napi);
 	}
+	mlx5e_trigger_napi_sched(&c->napi);
 }
 
 void mlx5e_ptp_deactivate_channel(struct mlx5e_ptp *c)
