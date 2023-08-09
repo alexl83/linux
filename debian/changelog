@@ -1,3 +1,9 @@
+linux (6.4.4-3kali1) kali-experimental; urgency=medium
+
+  * Sync with Debian
+
+ -- Sophie Brun <sophie@offensive-security.com>  Wed, 09 Aug 2023 15:20:42 +0200
+
 linux (6.4.4-3) unstable; urgency=high
 
   * io_uring: gate iowait schedule on having pending requests (Closes: #1041855)
