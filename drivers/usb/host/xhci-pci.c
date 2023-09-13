@@ -108,9 +108,6 @@ static void xhci_cleanup_msix(struct xhci_hcd *xhci)
 	struct usb_hcd *hcd = xhci_to_hcd(xhci);
 	struct pci_dev *pdev = to_pci_dev(hcd->self.controller);
 
-	if (xhci->quirks & XHCI_PLAT)
-		return;
-
 	/* return if using legacy interrupt */
 	if (hcd->irq > 0)
 		return;
@@ -207,10 +204,6 @@ static int xhci_try_enable_msi(struct usb_hcd *hcd)
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	struct pci_dev  *pdev;
 	int ret;
-
-	/* The xhci platform device has set up IRQs through usb_add_hcd. */
-	if (xhci->quirks & XHCI_PLAT)
-		return 0;
 
 	pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
 	/*
@@ -528,6 +521,7 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 
 	if (pdev->vendor == PCI_VENDOR_ID_ZHAOXIN) {
 		xhci->quirks |= XHCI_ZHAOXIN_HOST;
+		xhci->quirks |= XHCI_LPM_SUPPORT;
 
 		if (pdev->device == 0x9202) {
 			xhci->quirks |= XHCI_RESET_ON_RESUME;
