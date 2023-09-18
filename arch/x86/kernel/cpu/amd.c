@@ -1289,6 +1289,18 @@ u32 amd_get_highest_perf(void)
 }
 EXPORT_SYMBOL_GPL(amd_get_highest_perf);
 
+static void zenbleed_check_cpu(void *unused)
+{
+	struct cpuinfo_x86 *c = &cpu_data(smp_processor_id());
+
+	zenbleed_check(c);
+}
+
+void amd_check_microcode(void)
+{
+	on_each_cpu(zenbleed_check_cpu, NULL, 1);
+}
+
 bool cpu_has_ibpb_brtype_microcode(void)
 {
 	switch (boot_cpu_data.x86) {
@@ -1308,18 +1320,6 @@ bool cpu_has_ibpb_brtype_microcode(void)
 	}
 }
 
-static void zenbleed_check_cpu(void *unused)
-{
-	struct cpuinfo_x86 *c = &cpu_data(smp_processor_id());
-
-	zenbleed_check(c);
-}
-
-void amd_check_microcode(void)
-{
-	on_each_cpu(zenbleed_check_cpu, NULL, 1);
-}
-
 /*
  * Issue a DIV 0/1 insn to clear any division data from previous DIV
  * operations.
@@ -1329,3 +1329,4 @@ void noinstr amd_clear_divider(void)
 	asm volatile(ALTERNATIVE("", "div %2\n\t", X86_BUG_DIV0)
 		     :: "a" (0), "d" (0), "r" (1));
 }
+EXPORT_SYMBOL_GPL(amd_clear_divider);
