@@ -1,3 +1,10 @@
+linux (6.5.3-1kali2) kali-experimental; urgency=medium
+
+  * Import upstream patch scsi: core: ata: Do no try to probe for CDL on old drives
+  * Change ABI to kali2
+
+ -- Sophie Brun <sophie@offensive-security.com>  Tue, 03 Oct 2023 09:07:56 +0200
+
 linux (6.5.3-1kali1) kali-experimental; urgency=medium
 
   * Sync with Debian
