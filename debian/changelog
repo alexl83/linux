@@ -1,3 +1,11 @@
+linux (6.5.6-1kali1) kali-experimental; urgency=medium
+
+  * Sync with Debian
+  * Remove upstream patch scsi: core: ata: Do no try to probe for CDL on old
+    drives (merged upstream)
+
+ -- Sophie Brun <sophie@offensive-security.com>  Mon, 09 Oct 2023 17:30:37 +0200
+
 linux (6.5.6-1) unstable; urgency=medium
 
   * New upstream stable update:
