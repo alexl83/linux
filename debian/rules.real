@@ -36,6 +36,7 @@ export DEB_HOST_ARCH DEB_HOST_GNU_TYPE DEB_BUILD_ARCH
 export DEB_BUILD_PATH = $(CURDIR)  # for dpkg-buildflags
 export LC_ALL = C.UTF-8
 undefine LANGUAGE
+export LANG = C.UTF-8
 
 stamp = [ -d $(dir $@) ] || mkdir $(dir $@); touch $@
 
