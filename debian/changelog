@@ -1,3 +1,9 @@
+linux (6.5.13-1kali2) kali-experimental; urgency=medium
+
+  * Fix doc build in Kali
+
+ -- Sophie Brun <sophie@offensive-security.com>  Wed, 20 Dec 2023 11:41:58 +0100
+
 linux (6.5.13-1kali1) kali-experimental; urgency=medium
 
   * Sync with Debian
