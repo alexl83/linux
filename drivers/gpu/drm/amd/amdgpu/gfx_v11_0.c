@@ -83,6 +83,10 @@ MODULE_FIRMWARE("amdgpu/gc_11_0_4_me.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_4_mec.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_4_rlc.bin");
 
+static const struct soc15_reg_golden golden_settings_gc_11_0[] = {
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_CNTL, 0x20000000, 0x20000000)
+};
+
 static const struct soc15_reg_golden golden_settings_gc_11_0_1[] =
 {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, regCGTT_GS_NGG_CLK_CTRL, 0x9fff8fff, 0x00000010),
@@ -275,6 +279,10 @@ static void gfx_v11_0_init_golden_registers(struct amdgpu_device *adev)
 	default:
 		break;
 	}
+	soc15_program_register_sequence(adev,
+					golden_settings_gc_11_0,
+					(const u32)ARRAY_SIZE(golden_settings_gc_11_0));
+
 }
 
 static void gfx_v11_0_write_data_to_reg(struct amdgpu_ring *ring, int eng_sel,
@@ -390,7 +398,7 @@ static int gfx_v11_0_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 		adev->wb.wb[index] = cpu_to_le32(0xCAFEDEAD);
 		cpu_ptr = &adev->wb.wb[index];
 
-		r = amdgpu_ib_get(adev, NULL, 16, AMDGPU_IB_POOL_DIRECT, &ib);
+		r = amdgpu_ib_get(adev, NULL, 20, AMDGPU_IB_POOL_DIRECT, &ib);
 		if (r) {
 			DRM_ERROR("amdgpu: failed to get ib (%ld).\n", r);
 			goto err1;
@@ -667,7 +675,7 @@ static void gfx_v11_0_init_rlcg_reg_access_ctrl(struct amdgpu_device *adev)
 {
 	struct amdgpu_rlcg_reg_access_ctrl *reg_access_ctrl;
 
-	reg_access_ctrl = &adev->gfx.rlc.reg_access_ctrl;
+	reg_access_ctrl = &adev->gfx.rlc.reg_access_ctrl[0];
 	reg_access_ctrl->scratch_reg0 = SOC15_REG_OFFSET(GC, 0, regSCRATCH_REG0);
 	reg_access_ctrl->scratch_reg1 = SOC15_REG_OFFSET(GC, 0, regSCRATCH_REG1);
 	reg_access_ctrl->scratch_reg2 = SOC15_REG_OFFSET(GC, 0, regSCRATCH_REG2);
@@ -4654,26 +4662,6 @@ static int gfx_v11_0_early_init(void *handle)
 	return gfx_v11_0_init_microcode(adev);
 }
 
-static int gfx_v11_0_ras_late_init(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct ras_common_if *gfx_common_if;
-	int ret;
-
-	gfx_common_if = kzalloc(sizeof(struct ras_common_if), GFP_KERNEL);
-	if (!gfx_common_if)
-		return -ENOMEM;
-
-	gfx_common_if->block = AMDGPU_RAS_BLOCK__GFX;
-
-	ret = amdgpu_ras_feature_enable(adev, gfx_common_if, true);
-	if (ret)
-		dev_warn(adev->dev, "Failed to enable gfx11 ras feature\n");
-
-	kfree(gfx_common_if);
-	return 0;
-}
-
 static int gfx_v11_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -4686,12 +4674,6 @@ static int gfx_v11_0_late_init(void *handle)
 	r = amdgpu_irq_get(adev, &adev->gfx.priv_inst_irq, 0);
 	if (r)
 		return r;
-
-	if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(11, 0, 3)) {
-		r = gfx_v11_0_ras_late_init(handle);
-		if (r)
-			return r;
-	}
 
 	return 0;
 }

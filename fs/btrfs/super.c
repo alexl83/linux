@@ -79,7 +79,10 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data);
 
 static void btrfs_put_super(struct super_block *sb)
 {
-	close_ctree(btrfs_sb(sb));
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
+
+	btrfs_info(fs_info, "last unmount of filesystem %pU", fs_info->fs_devices->fsid);
+	close_ctree(fs_info);
 }
 
 enum {
@@ -709,12 +712,16 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			break;
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 		case Opt_check_integrity_including_extent_data:
+			btrfs_warn(info,
+	"integrity checker is deprecated and will be removed in 6.7");
 			btrfs_info(info,
 				   "enabling check integrity including extent data");
 			btrfs_set_opt(info->mount_opt, CHECK_INTEGRITY_DATA);
 			btrfs_set_opt(info->mount_opt, CHECK_INTEGRITY);
 			break;
 		case Opt_check_integrity:
+			btrfs_warn(info,
+	"integrity checker is deprecated and will be removed in 6.7");
 			btrfs_info(info, "enabling check integrity");
 			btrfs_set_opt(info->mount_opt, CHECK_INTEGRITY);
 			break;
@@ -727,6 +734,8 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 				goto out;
 			}
 			info->check_integrity_print_mask = intarg;
+			btrfs_warn(info,
+	"integrity checker is deprecated and will be removed in 6.7");
 			btrfs_info(info, "check_integrity_print_mask 0x%x",
 				   info->check_integrity_print_mask);
 			break;

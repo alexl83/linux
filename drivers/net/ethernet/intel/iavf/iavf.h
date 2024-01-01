@@ -92,9 +92,9 @@ struct iavf_vsi {
 #define IAVF_MBPS_DIVISOR	125000 /* divisor to convert to Mbps */
 #define IAVF_MBPS_QUANTA	50
 
-#define IAVF_VIRTCHNL_VF_RESOURCE_SIZE (sizeof(struct virtchnl_vf_resource) + \
-					(IAVF_MAX_VF_VSI * \
-					 sizeof(struct virtchnl_vsi_resource)))
+#define IAVF_VIRTCHNL_VF_RESOURCE_SIZE					\
+	virtchnl_struct_size((struct virtchnl_vf_resource *)NULL,	\
+			     vsi_res, IAVF_MAX_VF_VSI)
 
 /* MAX_MSIX_Q_VECTORS of these are allocated,
  * but we only use one per queue-specific vector.
@@ -303,6 +303,7 @@ struct iavf_adapter {
 #define IAVF_FLAG_QUEUES_DISABLED		BIT(17)
 #define IAVF_FLAG_SETUP_NETDEV_FEATURES		BIT(18)
 #define IAVF_FLAG_REINIT_MSIX_NEEDED		BIT(20)
+#define IAVF_FLAG_FDIR_ENABLED			BIT(21)
 /* duplicates for common code */
 #define IAVF_FLAG_DCB_ENABLED			0
 	/* flags for admin queue service task */
