@@ -805,7 +805,7 @@ static struct nft_table *nft_table_lookup(const struct net *net,
 
 static struct nft_table *nft_table_lookup_byhandle(const struct net *net,
 						   const struct nlattr *nla,
-						   u8 genmask, u32 nlpid)
+						   int family, u8 genmask, u32 nlpid)
 {
 	struct nftables_pernet *nft_net;
 	struct nft_table *table;
@@ -813,6 +813,7 @@ static struct nft_table *nft_table_lookup_byhandle(const struct net *net,
 	nft_net = nft_pernet(net);
 	list_for_each_entry(table, &nft_net->tables, list) {
 		if (be64_to_cpu(nla_get_be64(nla)) == table->handle &&
+		    table->family == family &&
 		    nft_active_genmask(table, genmask)) {
 			if (nft_table_has_owner(table) &&
 			    nlpid && table->nlpid != nlpid)
@@ -1546,7 +1547,7 @@ static int nf_tables_deltable(struct sk_buff *skb, const struct nfnl_info *info,
 
 	if (nla[NFTA_TABLE_HANDLE]) {
 		attr = nla[NFTA_TABLE_HANDLE];
-		table = nft_table_lookup_byhandle(net, attr, genmask,
+		table = nft_table_lookup_byhandle(net, attr, family, genmask,
 						  NETLINK_CB(skb).portid);
 	} else {
 		attr = nla[NFTA_TABLE_NAME];
@@ -3701,6 +3702,9 @@ int nft_chain_validate(const struct nft_ctx *ctx, const struct nft_chain *chain)
 		return -EMLINK;
 
 	list_for_each_entry(rule, &chain->rules, list) {
+		if (fatal_signal_pending(current))
+			return -EINTR;
+
 		if (!nft_is_active_next(ctx->net, rule))
 			continue;
 
@@ -10593,6 +10597,9 @@ static int nf_tables_check_loops(const struct nft_ctx *ctx,
 
 	if (ctx->chain == chain)
 		return -ELOOP;
+
+	if (fatal_signal_pending(current))
+		return -EINTR;
 
 	list_for_each_entry(rule, &chain->rules, list) {
 		nft_rule_for_each_expr(expr, last, rule) {
