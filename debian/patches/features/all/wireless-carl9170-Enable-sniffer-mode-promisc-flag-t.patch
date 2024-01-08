@@ -24,11 +24,9 @@ Signed-off-by: Steve deRosier <derosier@cal-sierra.com>
  drivers/net/wireless/ath/carl9170/mac.c | 5 +++++
  1 file changed, 5 insertions(+)
 
-diff --git a/drivers/net/wireless/ath/carl9170/mac.c b/drivers/net/wireless/ath/carl9170/mac.c
-index 7d4a72dc98db..c617e883f47a 100644
 --- a/drivers/net/wireless/ath/carl9170/mac.c
 +++ b/drivers/net/wireless/ath/carl9170/mac.c
-@@ -309,6 +309,7 @@ int carl9170_set_operating_mode(struct ar9170 *ar)
+@@ -309,6 +309,7 @@ int carl9170_set_operating_mode(struct a
  	u32 rx_ctrl = AR9170_MAC_RX_CTRL_DEAGG |
  		      AR9170_MAC_RX_CTRL_SHORT_FILTER;
  	u32 sniffer = AR9170_MAC_SNIFFER_DEFAULTS;
@@ -36,7 +34,7 @@ index 7d4a72dc98db..c617e883f47a 100644
  	int err = 0;
  
  	rcu_read_lock();
-@@ -373,6 +374,9 @@ int carl9170_set_operating_mode(struct ar9170 *ar)
+@@ -369,6 +370,9 @@ int carl9170_set_operating_mode(struct a
  
  	if (ar->sniffer_enabled) {
  		enc_mode |= AR9170_MAC_ENCRYPTION_RX_SOFTWARE;
@@ -46,7 +44,7 @@ index 7d4a72dc98db..c617e883f47a 100644
  	}
  
  	err = carl9170_set_mac_reg(ar, AR9170_MAC_REG_MAC_ADDR_L, mac_addr);
-@@ -384,6 +388,7 @@ int carl9170_set_operating_mode(struct ar9170 *ar)
+@@ -380,6 +384,7 @@ int carl9170_set_operating_mode(struct a
  		return err;
  
  	carl9170_regwrite_begin(ar);
@@ -54,6 +52,3 @@ index 7d4a72dc98db..c617e883f47a 100644
  	carl9170_regwrite(AR9170_MAC_REG_SNIFFER, sniffer);
  	carl9170_regwrite(AR9170_MAC_REG_CAM_MODE, cam_mode);
  	carl9170_regwrite(AR9170_MAC_REG_ENCRYPTION, enc_mode);
--- 
-2.14.1
-
