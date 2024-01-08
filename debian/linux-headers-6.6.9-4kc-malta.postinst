@@ -5,11 +5,7 @@
 #         Debian linux-image postinst script.
 
 $|=1;
-<<<<<<<< HEAD:debian/linux-headers-6.5.0-kali6-m68k.postinst
-my $version  = "6.5.0-kali6-m68k";
-========
 my $version  = "6.6.9-4kc-malta";
->>>>>>>> debian:debian/linux-headers-6.6.9-4kc-malta.postinst
 
 if (-d "/etc/kernel/header_postinst.d") {
   system ("run-parts --report --exit-on-error --arg=$version " .
