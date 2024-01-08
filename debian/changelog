@@ -1,3 +1,467 @@
+linux (6.6.9-1) unstable; urgency=medium
+
+  * New upstream stable update:
+    https://www.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.6.9
+    - bpf: Fix prog_array_map_poke_run map poke update
+    - btrfs: qgroup: iterate qgroups without memory allocation for
+      qgroup_reserve()
+    - btrfs: qgroup: use qgroup_iterator in qgroup_convert_meta()
+    - btrfs: free qgroup pertrans reserve on transaction abort
+    - drm/amd/display: fix hw rotated modes when PSR-SU is enabled
+    - [x86] drm/i915: Fix FEC state dump
+    - [x86] drm/i915: Introduce crtc_state->enhanced_framing
+    - [x86] drm/i915/edp: don't write to DP_LINK_BW_SET when using rate select
+    - drm: Update file owner during use
+    - drm: Fix FD ownership check in drm_master_check_perm()
+    - [arm64,armhf] spi: spi-imx: correctly configure burst length when using
+      dma
+    - [arm64] dts: allwinner: h616: update emac for Orange Pi Zero 3
+    - [armhf] OMAP2+: Fix null pointer dereference and memory leak in
+      omap_soc_device_init
+    - reset: Fix crash when freeing non-existent optional resets
+    - [s390x] vx: fix save/restore of fpu kernel context
+    - [x86] platform/x86/intel/pmc: Fix hang in pmc_core_send_ltr_ignore()
+    - SUNRPC: Revert 5f7fc5d69f6e92ec0b38774c387f5cf7812c5806
+    - wifi: ieee80211: don't require protected vendor action frames
+    - wifi: iwlwifi: pcie: add another missing bh-disable for rxq->lock
+    - wifi: mac80211: check if the existing link config remains unchanged
+    - wifi: mac80211: don't re-add debugfs during reconfig
+    - wifi: mac80211: check defragmentation succeeded
+    - wifi: mac80211: mesh: check element parsing succeeded
+    - wifi: mac80211: mesh_plink: fix matches_local logic
+    - ice: fix theoretical out-of-bounds access in ethtool link modes
+    - bpf: syzkaller found null ptr deref in unix_bpf proto add
+    - Revert "net/mlx5e: fix double free of encap_header in update funcs"
+    - Revert "net/mlx5e: fix double free of encap_header"
+    - net/mlx5e: Fix slab-out-of-bounds in mlx5_query_nic_vport_mac_list()
+    - net/mlx5e: Fix a race in command alloc flow
+    - net/mlx5e: fix a potential double-free in fs_udp_create_groups
+    - net/mlx5e: Fix overrun reported by coverity
+    - net/mlx5e: Decrease num_block_tc when unblock tc offload
+    - net/mlx5e: XDP, Drop fragmented packets larger than MTU size
+    - net/mlx5: Fix fw tracer first block check
+    - net/mlx5: Refactor mlx5_flow_destination->rep pointer to vport num
+    - net/mlx5e: Fix error code in mlx5e_tc_action_miss_mapping_get()
+    - net/mlx5e: Fix error codes in alloc_branch_attr()
+    - net/mlx5e: Correct snprintf truncation handling for fw_version buffer
+    - net/mlx5e: Correct snprintf truncation handling for fw_version buffer used
+      by representors
+    - [arm64] net: mscc: ocelot: fix eMAC TX RMON stats for bucket 256-511 and
+      above
+    - [arm64] net: mscc: ocelot: fix pMAC TX RMON stats for bucket 256-511 and
+      above
+    - net: Return error from sk_stream_wait_connect() if sk_wait_event() fails
+    - net: sched: ife: fix potential use-after-free
+    - ethernet: atheros: fix a memleak in atl1e_setup_ring_resources
+    - net/rose: fix races in rose_kill_by_device()
+    - Bluetooth: Fix not notifying when connection encryption changes
+    - Bluetooth: Fix deadlock in vhci_send_frame
+    - Bluetooth: hci_event: shut up a false-positive warning
+    - Bluetooth: hci_core: Fix hci_conn_hash_lookup_cis
+    - bnxt_en: do not map packet buffers twice
+    - net: phy: skip LED triggers on PHYs on SFP modules
+    - ice: stop trashing VF VSI aggregator node ID information
+    - ice: alter feature support check for SRIOV and LAG
+    - ice: Fix PF with enabled XDP going no-carrier after reset
+    - net: mana: select PAGE_POOL
+    - net: check vlan filter feature in vlan_vids_add_by_dev() and
+      vlan_vids_del_by_dev()
+    - afs: Fix the dynamic root's d_delete to always delete unused dentries
+    - afs: Fix dynamic root lookup DNS check
+    - net: ethernet: mtk_wed: fix possible NULL pointer dereference in
+      mtk_wed_wo_queue_tx_clean()
+    - net/ipv6: Revert remove expired routes with a separated list of routes
+    - net: check dev->gso_max_size in gso_features_check()
+    - keys, dns: Allow key types (eg. DNS) to be reclaimed immediately on expiry
+    - afs: Fix overwriting of result of DNS query
+    - afs: Fix use-after-free due to get/remove race in volume tree
+    - [x86] drm/i915/hwmon: Fix static analysis tool reported issues
+    - [x86] drm/i915/mtl: Fix HDMI/DP PLL clock selection
+    - [arm64,armhf] ASoC: hdmi-codec: fix missing report for jack initial status
+    - [arm64] ASoC: fsl_sai: Fix channel swap issue on i.MX8MP
+    - [arm64] i2c: qcom-geni: fix missing clk_disable_unprepare() and
+      geni_se_resources_off()
+    - drm/amdgpu: re-create idle bo's PTE during VM state machine reset
+    - [armhf] i2c: aspeed: Handle the coalesced stop conditions with the start
+      conditions.
+    - gpiolib: cdev: add gpio_device locking wrapper around gpio_ioctl()
+    - nvme-pci: fix sleeping function called from interrupt context
+    - iio: imu: inv_mpu6050: fix an error code problem in inv_mpu6050_read_raw
+    - [arm64,armhf] iio: adc: meson: add separate config for axg SoC family
+    - scsi: bnx2fc: Fix skb double free in bnx2fc_rcv()
+    - scsi: ufs: qcom: Return ufs_qcom_clk_scale_*() errors in
+      ufs_qcom_clk_scale_notify()
+    - scsi: ufs: core: Let the sq_lock protect sq_tail_slot access
+    - iio: common: ms_sensors: ms_sensors_i2c: fix humidity conversion time
+      table
+    - iio: imu: adis16475: add spi_device_id table
+    - [armhf] iio: adc: ti_am335x_adc: Fix return value check of
+      tiadc_request_dma()
+    - iio: triggered-buffer: prevent possible freeing of wrong buffer
+    - ALSA: usb-audio: Increase delay in MOTU M quirk
+    - usb-storage: Add quirk for incorrect WP on Kingston DT Ultimate 3.0 G3
+    - wifi: mt76: fix crash with WED rx support enabled
+    - wifi: cfg80211: Add my certificate
+    - wifi: cfg80211: fix certs build to not depend on file order
+    - USB: serial: ftdi_sio: update Actisense PIDs constant names
+    - USB: serial: option: add Quectel EG912Y module support
+    - USB: serial: option: add Foxconn T99W265 with new baseline
+    - USB: serial: option: add Quectel RM500Q R13 firmware support
+    - ALSA: hda/tas2781: select program 0, conf 0 by default
+    - ALSA: hda/realtek: Add quirk for ASUS ROG GV302XA
+    - ASoC: tas2781: check the validity of prm_no/cfg_no
+    - Bluetooth: hci_event: Fix not checking if HCI_OP_INQUIRY has been sent
+    - Bluetooth: af_bluetooth: Fix Use-After-Free in bt_sock_recvmsg
+      (CVE-2023-51779)
+    - Bluetooth: L2CAP: Send reject on command corrupted request
+    - Bluetooth: MGMT/SMP: Fix address type when using SMP over BREDR/LE
+    - Bluetooth: Add more enc key size check
+    - usb: typec: ucsi: fix gpio-based orientation detection
+    - net: usb: ax88179_178a: avoid failed operations when device is
+      disconnected
+    - [x86] Input: soc_button_array - add mapping for airplane mode button
+    - net: 9p: avoid freeing uninit memory in p9pdu_vreadf
+    - net: rfkill: gpio: set GPIO direction
+    - net: avoid build bug in skb extension length calculation
+    - net: stmmac: fix incorrect flag check in timestamp interrupt
+    - dt-bindings: nvmem: mxs-ocotp: Document fsl,ocotp
+    - nfsd: call nfsd_last_thread() before final nfsd_put()
+    - smb: client: fix OOB in cifsd when receiving compounded resps
+    - smb: client: fix potential OOB in cifs_dump_detail()
+    - smb: client: fix OOB in SMB2_query_info_init()
+    - smb: client: fix OOB in smbCalcSize() (CVE-2023-6606)
+    - [x86] drm/i915: Reject async flips with bigjoiner
+    - [x86] drm/i915/dmc: Don't enable any pipe DMC events
+    - 9p: prevent read overrun in protocol dump tracepoint
+    - ring-buffer: Fix 32-bit rb_time_read() race with rb_time_cmpxchg()
+    - ring-buffer: Remove useless update to write_stamp in rb_try_to_discard()
+    - ring-buffer: Fix slowpath of interrupted event
+    - nvmem: brcm_nvram: store a copy of NVRAM content
+    - Revert "scsi: aacraid: Reply queue mapping to CPUs based on IRQ affinity"
+      (Closes: #1059624)
+    - scsi: core: Always send batch on reset or error handling command
+    - tracing / synthetic: Disable events after testing in
+      synth_event_gen_test_init()
+    - dm-integrity: don't modify bio's immutable bio_vec in integrity_metadata()
+    - [riscv64] pinctrl: starfive: jh7110: ignore disabled device tree nodes
+    - [risvv64] pinctrl: starfive: jh7100: ignore disabled device tree nodes
+    - [armhf] bus: ti-sysc: Flush posted write only after srst_udelay
+    - lib/vsprintf: Fix %pfwf when current node refcount == 0
+    - [x86] thunderbolt: Fix memory leak in margining_port_remove()
+    - [arm64] KVM: arm64: vgic: Simplify kvm_vgic_destroy()
+    - [arm64] KVM: arm64: vgic: Add a non-locking primitive for
+      kvm_vgic_vcpu_destroy()
+    - [arm64] KVM: arm64: vgic: Force vcpu vgic teardown on vcpu destroy
+    - [x86] alternatives: Sync core before enabling interrupts
+    - [x86] alternatives: Disable interrupts and sync when optimizing NOPs in
+      place
+    - [x86] smpboot/64: Handle X2APIC BIOS inconsistency gracefully
+
+  [ Salvatore Bonaccorso ]
+  * [arm64] drivers/vfio: Don't enable VFIO_NOIOMMU.
+    This is a breach of the integrity lockdown requirement of secure boot
+    and thus cannot be enabled.
+    Thanks to Bastian Blank and Ben Hutchings
+  * [rt] Update to 6.6.7-rt18
+
+  [ Bastian Blank ]
+  * [mips*] Increase RELOCATION_TABLE_SIZE to 0x200000. (closes: #1059431)
+
+ -- Bastian Blank <waldi@debian.org>  Mon, 01 Jan 2024 18:22:27 +0100
+
+linux (6.6.8-1) unstable; urgency=medium
+
+  * New upstream stable update:
+    https://www.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.6.8
+    - afs: Fix refcount underflow from error handling race (Closes: #1052304)
+    - HID: lenovo: Restrict detection of patched firmware only to USB cptkbd
+      (Closes: #1058758)
+    - [mips*] PCI: loongson: Limit MRRS to 256 (Closes: #1035587)
+
+ -- Bastian Blank <waldi@debian.org>  Fri, 22 Dec 2023 10:40:01 +0100
+
+linux (6.6.7-1~exp1) experimental; urgency=medium
+
+  * New upstream stable update:
+    https://www.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.6.5
+    - r8169: fix deadlock on RTL8125 in jumbo mtu mode (Closes: #1057790)
+    - io_uring: don't allow discontig pages for IORING_SETUP_NO_MMAP
+      (CVE-2023-6560)
+    - ipv4: igmp: fix refcnt uaf issue when receiving igmp query packet
+      (CVE-2023-6932)
+    https://www.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.6.6
+    https://www.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.6.7
+    - netfilter: nf_tables: bail out on mismatching dynset and set expressions
+      (CVE-2023-6622)
+    - perf: Fix perf_event_validate_size() (CVE-2023-6931)
+    - [mips*] kernel: Clear FPU states when setting up kernel threads
+      (Closes: #1055021)
+    - netfilter: nft_set_pipapo: skip inactive elements during set walk
+      (CVE-2023-6817)
+
+  [ Anatoliy Gunya ]
+  * [riscv64] improve Starfive Visionfive 2 support: enable DW_AXI_DMAC and
+    MOTORCOMM_PHY as modules
+
+  [ Bastian Blank ]
+  * [i386] No longer sign kernels.
+  * Properly merge Build-Depends, so that we don't carry hundred identical
+    entries.
+  * [udeb] Fix nic-shared-modules dependencies.
+  * Add dependency on image to headers package.
+
+  [ Salvatore Bonaccorso ]
+  * Enable vDPA support (Closes: #1057619)
+    - drivers/vdpa: Enable VDPA and VDPA_USER as module
+    - drivers/virtio: Enable VIRTIO_VDPA as module
+    - drivers/vhost: Enable VHOST_VDPA as module
+  * [rt] Refresh "serial: amba-pl011: Use port lock wrappers" for context
+    changes
+
+  [ Miguel Bernal Marin ]
+  * [amd64] Enable System Trace Modules and the Intel Trace Hub Software
+    Trace Hub support (Closes: #1050353)
+    - drivers/hwtracing/stm: Enable STM as module
+    - drivers/hwtracing/stm: Enable STM_PROTO_BASIC as module
+    - drivers/hwtracing/stm: Enable STM_PROTO_SYS_T as module
+    - drivers/hwtracing/stm: Enable STM_DUMMY as module
+    - drivers/hwtracing/stm: Enable STM_SOURCE_CONSOLE as module
+    - drivers/hwtracing/stm: Enable STM_SOURCE_HEARTBEAT as module
+    - drivers/hwtracing/stm: Enable STM_SOURCE_FTRACE as module
+    - drivers/hwtracing/intel_th: Enable INTEL_TH_STH as module
+
+  [ Jair Gonzalez ]
+  * [amd64] drivers/platform/x86/intel: Enable INTEL_TPMI (Topology Aware
+    Register and PM Capsule Interface).
+  * [amd64] drivers/powercap/Kconfig: Enable INTEL_RAPL_TPMI (Running Average
+    Power Limit Energy Reporting via the Topology Aware Register and PM
+    Capsule Interface) (Closes: #1053187).
+
+  [ Vincent Blut ]
+  * [x86] sound/soc/amd: Enable SND_SOC_AMD_PS and SND_SOC_AMD_PS_MACH as
+    modules (Closes: #1055649)
+  * [x86] sound/soc/amd: Enable SND_SOC_AMD_RPL_ACP6x as module
+    (Closes: #1058576)
+
+  [ Luca Boccassi ]
+  * Set CONFIG_VIRTIO_FS and its dependencies to builtin, to allow building
+    images that boot directly to rootfs (skipping the initrd)
+
+ -- Bastian Blank <waldi@debian.org>  Wed, 20 Dec 2023 12:06:39 +0100
+
+linux (6.6.4-1~exp1) experimental; urgency=medium
+
+  * New upstream stable update:
+    https://www.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.6.4
+    - nvmet: nul-terminate the NQNs passed in the connect command
+      (CVE-2023-6121)
+
+  [ Bastian Blank ]
+  * Fix build dependency on rsync.
+  * Fix build dependency on kernel-wedge.
+  * udeb: Make i2c-hid modules optional.
+
+  [ Timothy Pearson ]
+  * [powerpc] Don't clobber f0/vs0 during fp|altivec register save
+    (Closes: #1032104)
+
+  [ Johannes Schauer Marin Rodrigues ]
+  * Fix FTCBFS: Pass _PYTHON_SYSCONFIGDATA_NAME to the perf build.
+    (Closes: #1037938) Thanks to Helmut Grohne for the patch.
+
+ -- Bastian Blank <waldi@debian.org>  Sun, 03 Dec 2023 20:57:56 +0100
+
+linux (6.6.3-1~exp1) experimental; urgency=medium
+
+  * New upstream release: https://kernelnewbies.org/Linux_6.6
+  * New upstream stable update:
+    https://www.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.6.1
+    https://www.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.6.2
+    https://www.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.6.3
+
+  [ Vincent Blut ]
+  * [armhf] drivers/input/keyboard: Enable KEYBOARD_TCA8418 as module
+    (Closes: #1050782)
+  * drivers/net/wwan: Enable MTK_T7XX as module (Closes: #1055244)
+  * drivers/video/fbdev: Disable FB_UDL on all architectures (Closes: #1011986)
+
+  [ Bastian Blank ]
+  * [powerpc,ppc64] Remove unused arch specific bootwrapper.
+  * Generate installer packages according to own config.
+  * Sign modules using an ephemeral key: (closes: #1040901)
+    - Set MODULE_SIG_ALL to sign all modules.
+    - Not longer request Secure Boot signing for modules.
+    - Don't trust Secure Boot key any longer.
+  * Sign modules and support lockdown always.
+  * Compress all modules:
+    - Set MODULE_COMPRESS_XZ.
+  * Drop deprecated build profile stage1. (closes: #1051365)
+  * Generate information for signed template package early.
+  * Copy installer config into signed source.
+  * Make it possible to run debian/rules.real without root.
+  * Drop linux-compiler packages and use normal compiler packages again.
+  * [hppa] Drop transitional meta packages after one stable release.
+  * Use flake8 to check Python code.
+  * Build linux-libc-dev as arch-all package.
+  * [armel/marvell] Remove unusable kernel. (closes: #950324)
+  * Remove architectures not existing in Debian:
+    - arm64ilp32
+    - mips64r6
+    - mipsn32
+    - mipsn32el
+    - mipsn32r6
+    - mipsn32r6el
+    - mipsr6
+    - mipsr6
+    - mipsr6el
+    - mipsr6el
+    - s390
+    - sh3
+    - sparc
+
+  [ Emanuele Rocca ]
+  * [arm64] Enable support for Renesas RZ/G2UL (ARCH_R9A07G043), RZ/V2L
+    (ARCH_R9A07G054), and RZ/V2M (ARCH_R9A09G011). (Closes: #1053503)
+  * [arm64] Enable SND_SOC_SC8280XP, SC_LPASSCC_8280XP, and SND_SOC_WSA883X as
+    modules, needed for audio support on the Lenovo X13s. (Closes: #1055069)
+
+  [ Salvatore Bonaccorso ]
+  * drivers/block: Enable BLK_DEV_UBLK as module (Closes: #1032604)
+
+  [ Uwe Kleine-König ]
+  * Enable support for TI DP83TD510 Ethernet 10Base-T1L PHY
+
+  [ Diederik de Haas ]
+  * Drop patches applied upstream:
+    - Drop "cpupower: Bump soname version"
+  * Refresh patches:
+    - Adjust context in "Tweak gitignore for Debian pkg-kernel using git" and
+      drop 'svn' from patch Subject
+    - Adjust context in "linux-tools: Install perf-read-vdso{,x}32 in
+      directory under /usr/lib"
+    - Adjust context in "Documentation: Drop sphinx version check"
+    - Adjust context in "firmware: Remove redundant log messages from drivers"
+    - Adjust context in "radeon, amdgpu: Firmware is required for DRM and KMS
+      on R600 onward"
+    - Adjust context in "phy/marvell: disable 4-port phys"
+    - Adjust context in "fs: Add MODULE_SOFTDEP declarations for hard-coded
+      crypto drivers"
+    - Adjust context in "efi: Add an EFI_SECURE_BOOT flag to indicate secure
+      boot mode"
+    - Adjust context in "trust machine keyring (MoK) by default"
+    - Adjust context in "ntfs: mark it as broken"
+  * d/config: Update with the help of kconfigeditor2:
+    - [x86,amd64/cloud] arch/x86: Remove MICROCODE
+    - init: Remove EMBEDDED
+    - drivers/hwmon: Remove SENSORS_SMM665
+    - [armhf] drivers/staging/media/imx: Merge VIDEO_IMX_CSI into
+      VIDEO_IMX_MEDIA
+  * libcpupower1: Add is_valid_path to symbols file
+  * d/installer: Add crc-modules to nic-shared-modules Depends
+  * [rt] Update to 6.6-rt15
+  * d/patches: Remove amdgpu part in the "radeon, amdgpu: Firmware is required
+    for DRM and KMS on R600 onward" and "firmware_class: Refer to Debian wiki
+    page when logging missing firmware" patches (Closes: #1053764)
+  * Improve support for rk3588 devices
+    - [arm64] drivers/clk/rockchip: Enable CLK_RK3588
+    - [arm64] drivers/nvmem: Enable NVMEM_ROCKCHIP_OTP as module
+    - [arm64] drivers/perf: Enable ARM_PMUV3
+
+  [ Alper Nebi Yasak ]
+  * debian/templates: Keep cpio as build-depends for nodoc build profile
+  * [x86] Enable modules for more ChromeOS hardware functionality:
+    - Enable CROS_EC_SPI, CROS_EC_I2C, CROS_EC_LPC, CROS_EC_ISHTP as modules
+    - Enable IIO_CROS_EC_SENSORS, IIO_CROS_EC_SENSORS_CORE, IIO_CROS_EC_BARO,
+      IIO_CROS_EC_ACCEL_LEGACY, IIO_CROS_EC_SENSORS_LID_ANGLE,
+      IIO_CROS_EC_LIGHT_PROX as modules
+    - Enable KEYBOARD_CROS_EC, PWM_CROS_EC, RTC_DRV_CROS_EC, CEC_CROS_EC
+      I2C_CROS_EC_TUNNEL, SND_SOC_CROS_EC_CODEC, CHARGER_CROS_USBPD,
+      CROS_USBPD_LOGGER, EXTCON_USBC_CROS_EC as modules
+    - Enable WILCO_EC, CHARGER_WILCO, RTC_DRV_WILCO_EC, WILCO_EC_DEBUGFS,
+      WILCO_EC_EVENTS, WILCO_EC_TELEMETRY as modules
+    - Enable CHROMEOS_PRIVACY_SCREEN, CHROMEOS_TBMC as modules
+  * [x86] Enable more SoC audio modules for Intel and AMD systems:
+    - Enable SND_SOC_AMD_ACP_COMMON, SND_SOC_AMD_RV_RT5682_MACH,
+      SND_DESIGNWARE_I2S, SND_SOC_AMD_SOF_MACH, SND_SOC_SOF_AMD_TOPLEVEL,
+      SND_SOC_SOF_AMD_REMBRANDT as modules
+    - Enable SND_SOC_INTEL_AVS, SND_SOC_INTEL_AVS_MACH_DA7219,
+      SND_SOC_INTEL_AVS_MACH_DMIC, SND_SOC_INTEL_AVS_MACH_HDAUDIO,
+      SND_SOC_INTEL_AVS_MACH_MAX98373, SND_SOC_INTEL_AVS_MACH_NAU8825,
+      SND_SOC_INTEL_AVS_MACH_SSM4567, SND_SOC_INTEL_AVS_MACH_RT5663 and
+      SND_SOC_INTEL_CML_LP as modules
+    - Enable SND_SOC_INTEL_KBL_DA7219_MAX98927_MACH,
+      SND_SOC_INTEL_GLK_DA7219_MAX98357A_MACH, SND_SOC_INTEL_SOF_CS42L42_MACH,
+      SND_SOC_INTEL_SOF_NAU8825_MACH, SND_SOC_INTEL_SOF_CML_RT1011_RT5682_MACH,
+      SND_SOC_INTEL_SOF_DA7219_MAX98373_MACH, SND_SOC_INTEL_SOF_SSP_AMP_MACH,
+      SND_SOC_INTEL_CML_LP_DA7219_MAX98357A_MACH, SND_SOC_CS35L41_I2C and
+      SND_SOC_NAU8315 as modules
+  * [x86] Enable TOUCHSCREEN_ELAN as module
+  * [arm64] Enable configs common to MediaTek MT8173 and MT8183 platforms:
+    - Enable ARCH_MEDIATEK, MTK_TIMER, MTK_CPUX_TIMER, MST_IRQ, MTK_SCPSYS,
+      MTK_SCPSYS_PM_DOMAINS, MTK_INFRACFG, EINT_MTK, IOMMU_IO_PGTABLE_ARMV7S
+    - Enable ARM_MEDIATEK_CPUFREQ, ARM_MEDIATEK_CPUFREQ_HW as built-in
+    - Enable SERIAL_8250_MT6577 as built-in
+    - Enable HW_RANDOM_MTK, MEDIATEK_WATCHDOG, ARM_MEDIATEK_CPUFREQ and
+      ARM_MEDIATEK_CPUFREQ_HW as modules
+    - Enable MTK_SMI, MTK_IOMMU, MTK_MMSYS, MTK_CMDQ, MTK_CMDQ_MBOX,
+      PWM_MTK_DISP, DRM_MEDIATEK, DRM_MEDIATEK_HDMI, PHY_MTK_HDMI and
+      PHY_MTK_MIPI_DSI as modules
+    - Enable VIDEO_MEDIATEK_JPEG, VIDEO_MEDIATEK_VCODEC, VIDEO_MEDIATEK_VPU,
+      MTK_SCP, RPMSG_MTK_SCP as modules
+    - Enable MEDIATEK_MT6577_AUXADC and MTK_THERMAL as modules
+    - Enable I2C_MT65XX, SPI_MT65XX, MFD_MT6397, RTC_DRV_MT6397, MTK_PMIC_WRAP
+      and MTK_REGULATOR_COUPLER as modules
+    - Enable MMC_MTK as module
+    - Enable NVMEM_MTK_EFUSE, PHY_MTK_TPHY, USB_XHCI_MTK, USB_MTU3 as modules
+    - Enable USB_MTU3_DUAL_ROLE, and enable USB_ROLE_SWITCH as built-in
+    - Enable MT7622_WMAC
+    - Keep SoC-specific clock and pin controller drivers disabled
+  * [arm64] Enable configs for MT8183 Chromebooks:
+    - Enable PINCTRL_MT8183
+    - Enable COMMON_CLK_MT8183 and its AUDIOSYS, CAMSYS, IMGSYS, IPU_CORE0,
+      IPU_CORE1, IPU_ADL, IPU_CONN, MFGCFG, MMSYS, VDECSYS, VENCSYS as modules
+    - Enable DEVFREQ_GOV_PASSIVE, ARM_MEDIATEK_CCI_DEVFREQ, MTK_SVS as modules
+    - Enable DRM_ANALOGIX_ANX7625, DRM_PANEL_BOE_TV101WUM_NL6 and
+      REGULATOR_MT6358 as modules
+    - Enable CROS_EC_RPMSG and VIDEO_MEDIATEK_MDP3 as modules
+    - Enable MT7921S and ATH10K_SDIO as modules
+    - Enable GENERIC_ADC_THERMAL and USB_ONBOARD_HUB as modules
+    - Enable SND_SOC_BT_SCO, SND_SOC_CROS_EC_CODEC, SND_SOC_TS3A227E,
+      SND_SOC_MT6358, SND_SOC_MT8183, SND_SOC_MT8183_DA7219_MAX98357A,
+      and SND_SOC_MT8183_MT6358_TS3A227E_MAX98357A as modules
+  * [arm64] Enable configs for MT8173 Chromebooks:
+    - Enable PINCTRL_MT8173 and COMMON_CLK_MEDIATEK_FHCTL
+    - Enable COMMON_CLK_MT8173 and its IMGSYS, MMSYS, VDECSYS, VENCSYS clocks
+      as modules
+    - Enable DRM_PARADE_PS8640, REGULATOR_DA9211, REGULATOR_MT6397,
+      VIDEO_MEDIATEK_MDP and TOUCHSCREEN_MELFAS_MIP4 as modules
+    - Enable SPI_MTK_NOR and ARM_SMC_WATCHDOG as modules
+    - Enable SND_SOC_MT8173 and SND_SOC_MT8173_RT5650 as modules
+  * [arm64] Enable more hardware for RK3399 ChromeOS tablets:
+    - drivers/gpu/drm/panel/Kconfig: DRM_PANEL_INNOLUX_P079ZCA as module
+    - drivers/gpu/drm/panel/Kconfig: DRM_PANEL_KINGDISPLAY_KD097D04 as module
+    - drivers/media/i2c/Kconfig: Enable VIDEO_OV2685 as module
+    - drivers/media/i2c/Kconfig: Enable VIDEO_OV5695 as module
+    - drivers/net/wireless/ath/ath10k/Kconfig: Enable ATH10K_SDIO as module
+
+  [ John Paul Adrian Glaubitz ]
+  * [ia64] Compile with gcc-12 to work around ICE (PR target/111425)
+
+  [ Francesco Dolcini ]
+  * Improve support for NXP i.MX devices
+    - [armhf] drivers/cpufreq/Kconfig.arm: Enable CONFIG_ARM_IMX_CPUFREQ_DT
+    - [armhf] sound/soc/fsl/Kconfig: Enable CONFIG_SND_SOC_FSL_ASOC_CARD
+
+  [ Ben Hutchings ]
+  * d/rules.real: Reinstate installer test build with no build profiles
+  * udeb: Move i2c-hid modules to fb-modules since they depend on drm
+  * d/rules.real: Run dh_movetousr if available
+  * d/rules.real: Change linux-libc-dev installation to:
+    - Include all generic headers enabled on any supported architecture
+    - Use the upstream headers_install target again
+
+ -- Bastian Blank <waldi@debian.org>  Sat, 02 Dec 2023 20:03:34 +0100
+
 linux (6.5.13-1kali2) kali-experimental; urgency=medium
 
   * Fix doc build in Kali

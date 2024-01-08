@@ -12,8 +12,12 @@
 #include "ctree.h"
 #include "misc.h"
 
+/* Radix-tree tag for roots that are part of the trasaction. */
+#define BTRFS_ROOT_TRANS_TAG			0
+
 enum btrfs_trans_state {
 	TRANS_STATE_RUNNING,
+	TRANS_STATE_COMMIT_PREP,
 	TRANS_STATE_COMMIT_START,
 	TRANS_STATE_COMMIT_DOING,
 	TRANS_STATE_UNBLOCKED,

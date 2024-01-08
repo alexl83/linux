@@ -5,7 +5,6 @@
  */
 #include <linux/auxiliary_bus.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/mutex.h>
 #include <linux/property.h>
 #include <linux/soc/qcom/pdr.h>
@@ -229,7 +228,7 @@ static void pmic_glink_ucsi_notify(struct work_struct *work)
 
 	con_num = UCSI_CCI_CONNECTOR(cci);
 	if (con_num) {
-		if (con_num < PMIC_GLINK_MAX_PORTS &&
+		if (con_num <= PMIC_GLINK_MAX_PORTS &&
 		    ucsi->port_orientation[con_num - 1]) {
 			int orientation = gpiod_get_value(ucsi->port_orientation[con_num - 1]);
 

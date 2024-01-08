@@ -13,9 +13,6 @@ signed-code: false
 [image]
 install-stem: vmlinuz
 
-[relations]
-headers%gcc-13: linux-compiler-gcc-13-arm
-
 [armmp_description]
 hardware: ARMv7 multiplatform compatible SoCs
 hardware-long: ARMv7 multiplatform kernel. See
