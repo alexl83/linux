@@ -111,8 +111,8 @@ static void btrfs_drop_pages(struct btrfs_fs_info *fs_info,
 		 * accessed as prepare_pages should have marked them accessed
 		 * in prepare_pages via find_or_create_page()
 		 */
-		btrfs_page_clamp_clear_checked(fs_info, pages[i], block_start,
-					       block_len);
+		btrfs_folio_clamp_clear_checked(fs_info, page_folio(pages[i]),
+						block_start, block_len);
 		unlock_page(pages[i]);
 		put_page(pages[i]);
 	}
@@ -168,9 +168,12 @@ int btrfs_dirty_pages(struct btrfs_inode *inode, struct page **pages,
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = pages[i];
 
-		btrfs_page_clamp_set_uptodate(fs_info, p, start_pos, num_bytes);
-		btrfs_page_clamp_clear_checked(fs_info, p, start_pos, num_bytes);
-		btrfs_page_clamp_set_dirty(fs_info, p, start_pos, num_bytes);
+		btrfs_folio_clamp_set_uptodate(fs_info, page_folio(p),
+					       start_pos, num_bytes);
+		btrfs_folio_clamp_clear_checked(fs_info, page_folio(p),
+						start_pos, num_bytes);
+		btrfs_folio_clamp_set_dirty(fs_info, page_folio(p),
+					    start_pos, num_bytes);
 	}
 
 	/*
@@ -869,9 +872,9 @@ static int prepare_uptodate_page(struct inode *inode,
 		 * released.
 		 *
 		 * The private flag check is essential for subpage as we need
-		 * to store extra bitmap using page->private.
+		 * to store extra bitmap using folio private.
 		 */
-		if (page->mapping != inode->i_mapping || !PagePrivate(page)) {
+		if (page->mapping != inode->i_mapping || !folio_test_private(folio)) {
 			unlock_page(page);
 			return -EAGAIN;
 		}
@@ -1134,7 +1137,7 @@ static int btrfs_write_check(struct kiocb *iocb, struct iov_iter *from,
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	loff_t pos = iocb->ki_pos;
 	int ret;
 	loff_t oldsize;
@@ -1182,7 +1185,7 @@ static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
 	struct file *file = iocb->ki_filp;
 	loff_t pos;
 	struct inode *inode = file_inode(file);
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	struct page **pages = NULL;
 	struct extent_changeset *data_reserved = NULL;
 	u64 release_bytes = 0;
@@ -1458,7 +1461,7 @@ static ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	loff_t pos;
 	ssize_t written = 0;
 	ssize_t written_buffered;
@@ -1784,7 +1787,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct dentry *dentry = file_dentry(file);
 	struct inode *inode = d_inode(dentry);
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_log_ctx ctx;
@@ -2150,7 +2153,6 @@ out:
 		hole_em->block_start = EXTENT_MAP_HOLE;
 		hole_em->block_len = 0;
 		hole_em->orig_block_len = 0;
-		hole_em->compress_type = BTRFS_COMPRESS_NONE;
 		hole_em->generation = trans->transid;
 
 		ret = btrfs_replace_extent_map_range(inode, hole_em, true);
@@ -2591,7 +2593,7 @@ out:
 static int btrfs_punch_hole(struct file *file, loff_t offset, loff_t len)
 {
 	struct inode *inode = file_inode(file);
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct extent_state *cached_state = NULL;
 	struct btrfs_path *path;
@@ -2839,7 +2841,7 @@ static int btrfs_zero_range_check_range_boundary(struct btrfs_inode *inode,
 
 	if (em->block_start == EXTENT_MAP_HOLE)
 		ret = RANGE_BOUNDARY_HOLE;
-	else if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
+	else if (em->flags & EXTENT_FLAG_PREALLOC)
 		ret = RANGE_BOUNDARY_PREALLOC_EXTENT;
 	else
 		ret = RANGE_BOUNDARY_WRITTEN_EXTENT;
@@ -2879,8 +2881,7 @@ static int btrfs_zero_range(struct inode *inode,
 	 * extents and holes, we drop all the existing extents and allocate a
 	 * new prealloc extent, so that we get a larger contiguous disk extent.
 	 */
-	if (em->start <= alloc_start &&
-	    test_bit(EXTENT_FLAG_PREALLOC, &em->flags)) {
+	if (em->start <= alloc_start && (em->flags & EXTENT_FLAG_PREALLOC)) {
 		const u64 em_end = em->start + em->len;
 
 		if (em_end >= offset + len) {
@@ -2915,7 +2916,7 @@ static int btrfs_zero_range(struct inode *inode,
 			goto out;
 		}
 
-		if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags)) {
+		if (em->flags & EXTENT_FLAG_PREALLOC) {
 			free_extent_map(em);
 			ret = btrfs_fallocate_update_isize(inode, offset + len,
 							   mode);
@@ -3048,7 +3049,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 	int ret;
 
 	/* Do not allow fallocate in ZONED mode */
-	if (btrfs_is_zoned(btrfs_sb(inode->i_sb)))
+	if (btrfs_is_zoned(inode_to_fs_info(inode)))
 		return -EOPNOTSUPP;
 
 	alloc_start = round_down(offset, blocksize);
@@ -3136,7 +3137,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 		last_byte = ALIGN(last_byte, blocksize);
 		if (em->block_start == EXTENT_MAP_HOLE ||
 		    (cur_offset >= inode->i_size &&
-		     !test_bit(EXTENT_FLAG_PREALLOC, &em->flags))) {
+		     !(em->flags & EXTENT_FLAG_PREALLOC))) {
 			const u64 range_len = last_byte - cur_offset;
 
 			ret = add_falloc_range(&reserve_list, cur_offset, range_len);
@@ -3753,7 +3754,7 @@ static ssize_t btrfs_direct_read(struct kiocb *iocb, struct iov_iter *to)
 	if (fsverity_active(inode))
 		return 0;
 
-	if (check_direct_read(btrfs_sb(inode->i_sb), to, iocb->ki_pos))
+	if (check_direct_read(inode_to_fs_info(inode), to, iocb->ki_pos))
 		return 0;
 
 	btrfs_inode_lock(BTRFS_I(inode), BTRFS_ILOCK_SHARED);

@@ -1,3 +1,124 @@
+linux (6.8.9-1) unstable; urgency=medium
+
+  * New upstream release: https://kernelnewbies.org/Linux_6.8
+  * New upstream stable update:
+    https://www.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.8.1
+    https://www.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.8.2
+    https://www.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.8.3
+    https://www.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.8.4
+    https://www.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.8.5
+    https://www.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.8.6
+    https://www.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.8.7
+    https://www.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.8.8
+    https://www.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.8.9
+
+  [ Diederik de Haas ]
+  * d/templates/main.control.in: Add python3-dacite as linux-support Depends
+  * [armhf] Improve Tegra Chromebook support (Closes: #1061680)
+    - [armhf] drivers/net/wireless/marvell/mwifiex: Enable MWIFIEX and
+      MWIFIEX_SDIO as modules
+    - [armhf] drivers/power/supply: Enable CHARGER_BQ24735 as module
+    - [armhf] drivers/hwmon: Enable SENSORS_LM90 as module
+    - [armhf] drivers/media/cec/platform: Enable CEC_TEGRA as module
+  * drivers/thermal: Enable THERMAL_NETLINK
+  * [amd64] drivers/tee/amdtee: Enable AMDTEE as module
+  * [amd64] drivers/platform/x86/amd/pmf: Enable AMD_PMF as module
+    (Closes: #1063161)
+  * Update to 6.8.8:
+    - Drop patches applied upstream:
+      - "Partially revert 'MIPS: Add -Werror to arch/mips/Kbuild'"
+      - "platform/x86: p2sb: On Goldmont only cache P2SB and SPI devfn BAR"
+      - "driver core: Emit reason for pending deferred probe"
+      - "x86/mmio: Disable KVM mitigation when X86_FEATURE_CLEAR_CPU_BUF is set"
+      - "Documentation/hw-vuln: Add documentation for RFDS"
+      - "x86/rfds: Mitigate Register File Data Sampling (RFDS)"
+      - "KVM/x86: Export RFDS_NO and RFDS_CLEAR to guests"
+    - Refresh patches:
+      - Adjust context in "Tweak gitignore for Debian pkg-kernel using git"
+      - Adjust context in "Documentation: Drop sphinx version check"
+      - Adjust context in "firmware: Remove redundant log messages from drivers"
+      - Adjust context in "yama: Disable by default"
+      - Adjust context in "btrfs: warn about RAID5/6 being experimental at
+        mount time"
+      - Adjust context in "x86: Make x32 syscall support conditional on a
+        kernel parameter"
+      - Adjust context in "efi: Lock down the kernel if booted in secure boot
+        mode"
+      - Adjust context in "Export symbols needed by Android drivers"
+  * d/copyright: Exclude 'action-ebpf' as that's a binary blob
+  * d/installer/modules: Remove modules removed from upstream kernel
+  * d/config: Update with the help of kconfigeditor2:
+    - crypto: Remove CRYPTO_CFB and CRYPTO_OFB
+    - drivers/gpu/drm: Remove DRM_LEGACY
+    - drivers/md: Remove MD_FAULTY, MD_LINEAR and MD_MULTIPATH
+    - [alpha,hppa,mips.malta,powerpc,x86] drivers/net/wireless/atmel:
+      Remove ATMEL, PCI_ATMEL and PCMCIA_ATMEL
+    - drivers/net/wireless/cisco: Remove WLAN_VENDOR_CISCO and AIRO
+    - [alpha,hppa,powerpc,x86] drivers/net/wireless/cisco: Remove AIRO_CS
+    - drivers/net/wireless/intersil/hostap: Remove HOSTAP, HOSTAP_FIRMWARE,
+      HOSTAP_FIRMWARE_NVRAM, HOSTAP_PLX, HOSTAP_PCI and HOSTAP_CS
+    - drivers/net/wireless/intersil/orinoco: Remove HERMES_PRISM,
+      HERMES_CACHE_FW_ON_INIT, NORTEL_HERMES, PCMCIA_SPECTRUM and ORINOCO_USB
+    - [alpha,hppa,mips.malta,powerpc,x86] drivers/net/wireless/intersil/orinoco:
+      Remove HERMES, APPLE_AIRPORT, PLX_HERMES, TMD_HERMES, PCI_HERMES,
+      PCMCIA_HERMES
+    - drivers/net/wireless/legacy: Remove USB_NET_RNDIS_WLAN
+    - [alpha,hppa,powerpc,x86] drivers/net/wireless/legacy:
+      Remove PCMCIA_RAYCS and PCMCIA_WL3501
+    - drivers/net/wireless/marvell/libertas: Remove LIBERTAS_CS
+    - [alpha,hppa,mips.malta,powerpc,x86] drivers/net/wireless/zydas:
+      Remove USB_ZD1201
+    - drivers/video/fbdev: Remove FB_INTEL_DEBUG FB_INTEL_I2C
+    - [armhf,arm64] drivers/video/fbdev: Remove FB_ARMCLCD
+    - [cloud,x86] drivers/video/fbdev: Remove FB_CARILLO_RANCH and FB_LE80578
+    - [x86] drivers/video/fbdev: Remove FB_INTEL
+    - fs/fscache: Change FSCACHE to `y`
+    - mm: Remove SLAB_DEPRECATED and SLUB
+    - net/bpfilter: Remove BPFILTER
+  * [rt] Update to 6.8.2-rt11
+  * [rt] Drop patches applied in 6.8.6:
+    - "printk: For @suppress_panic_printk check for other CPU in panic"
+    - "panic: Flush kernel log buffer at the end"
+    - "dump_stack: Do not get cpu_sync for panic CPU"
+  * [arm64] net/rfkill: Enable RFKILL_GPIO as module
+  * [arm64] Further improve support for SolidRun HoneyComb (Closes: #1065611):
+    - [arm64] drivers/hwmon/pmbus: Enable PMBUS, SENSORS_PMBUS and
+      SENSORS_LTC2978 as modules
+    - [arm64] drivers/nvmem: Enable NVMEM_LAYERSCAPE_SFP as module
+    - [arm64] drivers/rtc: Enable RTC_DRV_FSL_FTM_ALARM as module
+    - [arm64] drivers/soc/fsl: Enable FSL_RCPM
+  * d/templates: Change firmware-linux-free from Recommends to Suggests
+
+  [ Vincent Blut ]
+  * [arm64] Improve support for SolidRun Honeycomb Workstation:
+    - drivers/pci/controller/mobiveil: Enable PCIE_LAYERSCAPE_GEN4
+      (Closes: #1061116)
+    - drivers/phy/freescale: Enable PHY_FSL_LYNX_28G as module
+      (Closes: #1061117)
+  * sound/virtio: Enable SND_VIRTIO as module (Closes: #1059089)
+
+  [ Salvatore Bonaccorso ]
+  * drivers/tty: Disable N_GSM
+  * tipc: fix UAF in error path
+  * tipc: fix a possible memleak in tipc_buf_append
+
+  [ Ben Hutchings ]
+  - d/salsa-ci.yml: Restore Python static checks on scripts
+  * linux-doc: Add python3-yaml to Build-Depends, required from 6.8
+  * udeb: Move crc8 to crc-modules to avoid duplication
+
+  [ Stuart Hayhurst ]
+  * sound: Enable TAS2781 Smart Amp modules
+
+  [ Eric Mackay ]
+  * [arm64] Dynamically allocate cpumasks and increase supported CPUs to 512
+
+  [ Uwe Kleine-König ]
+  * [arm64,armhf] Enable SND_SOC_WM8804_I2C for the hifiberry-digi raspberry
+    hat.
+
+ -- Ben Hutchings <benh@debian.org>  Thu, 16 May 2024 01:42:10 +0200
+
 linux (6.7.12-1) unstable; urgency=medium
 
   * New upstream stable update:

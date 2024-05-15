@@ -1,7 +1,7 @@
 b7cea9c894d78cf60b178b55169eaa0f  debian/bin/gencontrol.py
-016a17353d3804f386347b2692f16a76  debian/build/version-info
+b087f042670c3883b2bbcb0ee15247c8  debian/build/version-info
 c06195eaf3f5d361e55133652fb46a6d  debian/templates/config.control.in
-05587ce41567baea8b88479df8a54e8d  debian/templates/docs.control.in
+d010dac283dad435d3bc0ef4e08f4af9  debian/templates/docs.control.in
 0abe84ef18b69b7b7efda55c60b62e75  debian/templates/docs.meta.control.in
 2f0364e925c700f09b806dd6bba7d8bf  debian/templates/docs.meta.maintscript.in
 d41d8cd98f00b204e9800998ecf8427e  debian/templates/extra.control.in
@@ -16,13 +16,13 @@ c009517cb2931ada043f11a79b797a0b  debian/templates/headers.tests-control.in
 eebbd0d671c21eba0a79f6d1226c0bc7  debian/templates/image-dbg.meta.lintian-overrides.in
 ecec9b1808743ce6dd807a7bbdb293d1  debian/templates/image-dbg.meta.maintscript.in
 8e2a7bfff102c8a13ba1dc828e562080  debian/templates/image-unsigned.NEWS.in
-81fa88163dfab6349a142611d9b59f7a  debian/templates/image-unsigned.control.in
+7840402797f1410755053970be5a1b5d  debian/templates/image-unsigned.control.in
 0327750d6696dee915a532aec73a0fd6  debian/templates/image-unsigned.postinst.in
 a4a60fc48b3240e46bbac6a1ddcaad30  debian/templates/image-unsigned.postrm.in
 38004750aa03cea41d5d3aeafff16fcc  debian/templates/image-unsigned.preinst.in
 afb508873a44a1f196c2a525fec4b415  debian/templates/image-unsigned.prerm.in
 8e2a7bfff102c8a13ba1dc828e562080  debian/templates/image.NEWS.in
-542241e2f9b248cec69505b1b130e0d7  debian/templates/image.control.in
+4076af257f2410c3146a1b28e5505d34  debian/templates/image.control.in
 769a43efb579711359e12554e34d0baa  debian/templates/image.meta.bug-presubj.in
 c801fd63bc03b985079b5cf6eaf644b9  debian/templates/image.meta.control.in
 15e98dd33b3bb098bf9f25114c8371c2  debian/templates/image.meta.maintscript.in
@@ -32,7 +32,7 @@ a4a60fc48b3240e46bbac6a1ddcaad30  debian/templates/image.postrm.in
 afb508873a44a1f196c2a525fec4b415  debian/templates/image.prerm.in
 d41d8cd98f00b204e9800998ecf8427e  debian/templates/image.tests-control.in
 01a02c1fdcbb5d0b53d0bfee083361f1  debian/templates/libc-dev.control.in
-e3d9c4dc629cc8ddb94eec5bb345610d  debian/templates/main.control.in
+0b6b4885d4b1086c75de880447713717  debian/templates/main.control.in
 8b0af4bffc37b385ffb461cd920548e1  debian/templates/main.tests-control.in
 02458c1d2cf4c2a37e518098bb72b3a4  debian/templates/signed-template.control.in
 c37dd714832ae86180ff90a85d418b72  debian/templates/signed-template.lintian-overrides.in
@@ -40,7 +40,7 @@ c37dd714832ae86180ff90a85d418b72  debian/templates/signed-template.lintian-overr
 fe7cdc2df9d38c9a43bfc1f5abadd127  debian/templates/signed.headers.meta.lintian-overrides.in
 39dddaa9ca4735ad2ddaf682ecf0b566  debian/templates/signed.headers.meta.maintscript.in
 8e2a7bfff102c8a13ba1dc828e562080  debian/templates/signed.image.NEWS.in
-f7a99e609a401b21ba0be33f66860e38  debian/templates/signed.image.control.in
+d0f4305dd51861c31b7d5a7cf9bd0d4f  debian/templates/signed.image.control.in
 0327750d6696dee915a532aec73a0fd6  debian/templates/signed.image.postinst.in
 a4a60fc48b3240e46bbac6a1ddcaad30  debian/templates/signed.image.postrm.in
 38004750aa03cea41d5d3aeafff16fcc  debian/templates/signed.image.preinst.in
