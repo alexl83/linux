@@ -163,8 +163,6 @@ CONFIG_MOUSE_PS2_TRACKPOINT=y
 ## file: drivers/iommu/amd/Kconfig
 ##
 CONFIG_AMD_IOMMU=y
-#. Can be built as a module, but nothing will trigger loading
-CONFIG_AMD_IOMMU_V2=y
 
 ##
 ## file: drivers/macintosh/Kconfig
@@ -220,6 +218,11 @@ CONFIG_PINCTRL_AMD=y
 CONFIG_AMD_PMC=m
 
 ##
+## file: drivers/platform/x86/amd/pmf/Kconfig
+##
+CONFIG_AMD_PMF=m
+
+##
 ## file: drivers/platform/x86/intel/Kconfig
 ##
 CONFIG_INTEL_TPMI=m
@@ -248,6 +251,11 @@ CONFIG_SCSI_INIA100=m
 ## file: drivers/spi/Kconfig
 ##
 CONFIG_SPI_PXA2XX=m
+
+##
+## file: drivers/tee/amdtee/Kconfig
+##
+CONFIG_AMDTEE=m
 
 ##
 ## file: drivers/tty/Kconfig

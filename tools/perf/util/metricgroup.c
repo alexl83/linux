@@ -286,7 +286,7 @@ static int setup_metric_events(const char *pmu, struct hashmap *ids,
 	*out_metric_events = NULL;
 	ids_size = hashmap__size(ids);
 
-	metric_events = calloc(sizeof(void *), ids_size + 1);
+	metric_events = calloc(ids_size + 1, sizeof(void *));
 	if (!metric_events)
 		return -ENOMEM;
 
@@ -498,7 +498,7 @@ static int metricgroup__sys_event_iter(const struct pmu_metric *pm,
 
 	while ((pmu = perf_pmus__scan(pmu))) {
 
-		if (!pmu->id || strcmp(pmu->id, pm->compat))
+		if (!pmu->id || !pmu_uncore_identifier_match(pm->compat, pmu->id))
 			continue;
 
 		return d->fn(pm, table, d->data);

@@ -25,6 +25,7 @@
 #include <linux/freezer.h>
 #include <linux/namei.h>
 #include <linux/random.h>
+#include <linux/splice.h>
 #include <linux/uuid.h>
 #include <linux/xattr.h>
 #include <uapi/linux/magic.h>
@@ -159,6 +160,7 @@ struct workqueue_struct	*decrypt_wq;
 struct workqueue_struct	*fileinfo_put_wq;
 struct workqueue_struct	*cifsoplockd_wq;
 struct workqueue_struct	*deferredclose_wq;
+struct workqueue_struct	*serverclose_wq;
 __u32 cifs_lock_secret;
 
 /*
@@ -391,11 +393,12 @@ cifs_alloc_inode(struct super_block *sb)
 	 * server, can not assume caching of file data or metadata.
 	 */
 	cifs_set_oplock_level(cifs_inode, 0);
+	cifs_inode->lease_granted = false;
 	cifs_inode->flags = 0;
 	spin_lock_init(&cifs_inode->writers_lock);
 	cifs_inode->writers = 0;
 	cifs_inode->netfs.inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
-	cifs_inode->server_eof = 0;
+	cifs_inode->netfs.remote_i_size = 0;
 	cifs_inode->uniqueid = 0;
 	cifs_inode->createtime = 0;
 	cifs_inode->epoch = 0;
@@ -429,7 +432,7 @@ static void
 cifs_evict_inode(struct inode *inode)
 {
 	truncate_inode_pages_final(&inode->i_data);
-	if (inode->i_state & I_PINNING_FSCACHE_WB)
+	if (inode->i_state & I_PINNING_NETFS_WB)
 		cifs_fscache_unuse_inode_cookie(inode, true);
 	cifs_fscache_release_inode_cookie(inode);
 	clear_inode(inode);
@@ -680,6 +683,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_printf(s, ",rasize=%u", cifs_sb->ctx->rasize);
 	if (tcon->ses->server->min_offload)
 		seq_printf(s, ",esize=%u", tcon->ses->server->min_offload);
+	if (tcon->ses->server->retrans)
+		seq_printf(s, ",retrans=%u", tcon->ses->server->retrans);
 	seq_printf(s, ",echo_interval=%lu",
 			tcon->ses->server->echo_interval / HZ);
 
@@ -792,8 +797,7 @@ static int cifs_show_stats(struct seq_file *s, struct dentry *root)
 
 static int cifs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
-	fscache_unpin_writeback(wbc, cifs_inode_cookie(inode));
-	return 0;
+	return netfs_unpin_writeback(inode, wbc);
 }
 
 static int cifs_drop_inode(struct inode *inode)
@@ -1170,6 +1174,9 @@ const char *cifs_get_link(struct dentry *dentry, struct inode *inode,
 {
 	char *target_path;
 
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
+
 	target_path = kmalloc(PATH_MAX, GFP_KERNEL);
 	if (!target_path)
 		return ERR_PTR(-ENOMEM);
@@ -1221,7 +1228,7 @@ static int cifs_precopy_set_eof(struct inode *src_inode, struct cifsInodeInfo *s
 	if (rc < 0)
 		goto set_failed;
 
-	netfs_resize_file(&src_cifsi->netfs, src_end);
+	netfs_resize_file(&src_cifsi->netfs, src_end, true);
 	fscache_resize_cookie(cifs_inode_cookie(src_inode), src_end);
 	return 0;
 
@@ -1352,7 +1359,7 @@ static loff_t cifs_remap_file_range(struct file *src_file, loff_t off,
 			smb_file_src, smb_file_target, off, len, destoff);
 		if (rc == 0 && new_size > i_size_read(target_inode)) {
 			truncate_setsize(target_inode, new_size);
-			netfs_resize_file(&target_cifsi->netfs, new_size);
+			netfs_resize_file(&target_cifsi->netfs, new_size, true);
 			fscache_resize_cookie(cifs_inode_cookie(target_inode),
 					      new_size);
 		}
@@ -1378,6 +1385,7 @@ ssize_t cifs_file_copychunk_range(unsigned int xid,
 	struct inode *src_inode = file_inode(src_file);
 	struct inode *target_inode = file_inode(dst_file);
 	struct cifsInodeInfo *src_cifsi = CIFS_I(src_inode);
+	struct cifsInodeInfo *target_cifsi = CIFS_I(target_inode);
 	struct cifsFileInfo *smb_file_src;
 	struct cifsFileInfo *smb_file_target;
 	struct cifs_tcon *src_tcon;
@@ -1426,7 +1434,7 @@ ssize_t cifs_file_copychunk_range(unsigned int xid,
 	 * Advance the EOF marker after the flush above to the end of the range
 	 * if it's short of that.
 	 */
-	if (src_cifsi->server_eof < off + len) {
+	if (src_cifsi->netfs.remote_i_size < off + len) {
 		rc = cifs_precopy_set_eof(src_inode, src_cifsi, src_tcon, xid, off + len);
 		if (rc < 0)
 			goto unlock;
@@ -1450,12 +1458,22 @@ ssize_t cifs_file_copychunk_range(unsigned int xid,
 	/* Discard all the folios that overlap the destination region. */
 	truncate_inode_pages_range(&target_inode->i_data, fstart, fend);
 
+	fscache_invalidate(cifs_inode_cookie(target_inode), NULL,
+			   i_size_read(target_inode), 0);
+
 	rc = file_modified(dst_file);
 	if (!rc) {
 		rc = target_tcon->ses->server->ops->copychunk_range(xid,
 			smb_file_src, smb_file_target, off, len, destoff);
-		if (rc > 0 && destoff + rc > i_size_read(target_inode))
+		if (rc > 0 && destoff + rc > i_size_read(target_inode)) {
 			truncate_setsize(target_inode, destoff + rc);
+			netfs_resize_file(&target_cifsi->netfs,
+					  i_size_read(target_inode), true);
+			fscache_resize_cookie(cifs_inode_cookie(target_inode),
+					      i_size_read(target_inode));
+		}
+		if (rc > 0 && destoff + rc > target_cifsi->netfs.zero_point)
+			target_cifsi->netfs.zero_point = destoff + rc;
 	}
 
 	file_accessed(src_file);
@@ -1506,8 +1524,8 @@ static ssize_t cifs_copy_file_range(struct file *src_file, loff_t off,
 	free_xid(xid);
 
 	if (rc == -EOPNOTSUPP || rc == -EXDEV)
-		rc = generic_copy_file_range(src_file, off, dst_file,
-					     destoff, len, flags);
+		rc = splice_copy_file_range(src_file, off, dst_file,
+					    destoff, len);
 	return rc;
 }
 
@@ -1877,6 +1895,13 @@ init_cifs(void)
 		goto out_destroy_cifsoplockd_wq;
 	}
 
+	serverclose_wq = alloc_workqueue("serverclose",
+					   WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
+	if (!serverclose_wq) {
+		rc = -ENOMEM;
+		goto out_destroy_serverclose_wq;
+	}
+
 	rc = cifs_init_inodecache();
 	if (rc)
 		goto out_destroy_deferredclose_wq;
@@ -1951,6 +1976,8 @@ out_destroy_decrypt_wq:
 	destroy_workqueue(decrypt_wq);
 out_destroy_cifsiod_wq:
 	destroy_workqueue(cifsiod_wq);
+out_destroy_serverclose_wq:
+	destroy_workqueue(serverclose_wq);
 out_clean_proc:
 	cifs_proc_clean();
 	return rc;
@@ -1980,6 +2007,7 @@ exit_cifs(void)
 	destroy_workqueue(cifsoplockd_wq);
 	destroy_workqueue(decrypt_wq);
 	destroy_workqueue(fileinfo_put_wq);
+	destroy_workqueue(serverclose_wq);
 	destroy_workqueue(cifsiod_wq);
 	cifs_proc_clean();
 }

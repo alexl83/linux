@@ -17,10 +17,10 @@
 
 #define IO_BUFFER_LIST_BUF_PER_PAGE (PAGE_SIZE / sizeof(struct io_uring_buf))
 
-#define BGID_ARRAY	64
-
 /* BIDs are addressed by a 16-bit field in a CQE */
 #define MAX_BIDS_PER_BGID (1 << 16)
+
+struct kmem_cache *io_buf_cachep;
 
 struct io_provide_buf {
 	struct file			*file;
@@ -31,16 +31,6 @@ struct io_provide_buf {
 	__u16				bid;
 };
 
-static struct io_buffer_list *__io_buffer_get_list(struct io_ring_ctx *ctx,
-						   struct io_buffer_list *bl,
-						   unsigned int bgid)
-{
-	if (bl && bgid < BGID_ARRAY)
-		return &bl[bgid];
-
-	return xa_load(&ctx->io_bl_xa, bgid);
-}
-
 struct io_buf_free {
 	struct hlist_node		list;
 	void				*mem;
@@ -48,12 +38,18 @@ struct io_buf_free {
 	int				inuse;
 };
 
+static inline struct io_buffer_list *__io_buffer_get_list(struct io_ring_ctx *ctx,
+							  unsigned int bgid)
+{
+	return xa_load(&ctx->io_bl_xa, bgid);
+}
+
 static inline struct io_buffer_list *io_buffer_get_list(struct io_ring_ctx *ctx,
 							unsigned int bgid)
 {
 	lockdep_assert_held(&ctx->uring_lock);
 
-	return __io_buffer_get_list(ctx, ctx->io_bl, bgid);
+	return __io_buffer_get_list(ctx, bgid);
 }
 
 static int io_buffer_add_list(struct io_ring_ctx *ctx,
@@ -65,15 +61,11 @@ static int io_buffer_add_list(struct io_ring_ctx *ctx,
 	 * always under the ->uring_lock, but the RCU lookup from mmap does.
 	 */
 	bl->bgid = bgid;
-	smp_store_release(&bl->is_ready, 1);
-
-	if (bgid < BGID_ARRAY)
-		return 0;
-
+	atomic_set(&bl->refs, 1);
 	return xa_err(xa_store(&ctx->io_bl_xa, bgid, bl, GFP_KERNEL));
 }
 
-void io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags)
+bool io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_buffer_list *bl;
@@ -86,7 +78,7 @@ void io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags)
 	 * multiple use.
 	 */
 	if (req->flags & REQ_F_PARTIAL_IO)
-		return;
+		return false;
 
 	io_ring_submit_lock(ctx, issue_flags);
 
@@ -97,7 +89,7 @@ void io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags)
 	req->buf_index = buf->bgid;
 
 	io_ring_submit_unlock(ctx, issue_flags);
-	return;
+	return true;
 }
 
 unsigned int __io_put_kbuf(struct io_kiocb *req, unsigned issue_flags)
@@ -215,24 +207,6 @@ void __user *io_buffer_select(struct io_kiocb *req, size_t *len,
 	return ret;
 }
 
-static __cold int io_init_bl_list(struct io_ring_ctx *ctx)
-{
-	struct io_buffer_list *bl;
-	int i;
-
-	bl = kcalloc(BGID_ARRAY, sizeof(struct io_buffer_list), GFP_KERNEL);
-	if (!bl)
-		return -ENOMEM;
-
-	for (i = 0; i < BGID_ARRAY; i++) {
-		INIT_LIST_HEAD(&bl[i].buf_list);
-		bl[i].bgid = i;
-	}
-
-	smp_store_release(&ctx->io_bl, bl);
-	return 0;
-}
-
 /*
  * Mark the given mapped range as free for reuse
  */
@@ -301,30 +275,37 @@ static int __io_remove_buffers(struct io_ring_ctx *ctx,
 	return i;
 }
 
-void io_destroy_buffers(struct io_ring_ctx *ctx)
+void io_put_bl(struct io_ring_ctx *ctx, struct io_buffer_list *bl)
 {
-	struct io_buffer_list *bl;
-	unsigned long index;
-	int i;
-
-	for (i = 0; i < BGID_ARRAY; i++) {
-		if (!ctx->io_bl)
-			break;
-		__io_remove_buffers(ctx, &ctx->io_bl[i], -1U);
-	}
-
-	xa_for_each(&ctx->io_bl_xa, index, bl) {
-		xa_erase(&ctx->io_bl_xa, bl->bgid);
+	if (atomic_dec_and_test(&bl->refs)) {
 		__io_remove_buffers(ctx, bl, -1U);
 		kfree_rcu(bl, rcu);
 	}
+}
 
-	while (!list_empty(&ctx->io_buffers_pages)) {
-		struct page *page;
+void io_destroy_buffers(struct io_ring_ctx *ctx)
+{
+	struct io_buffer_list *bl;
+	struct list_head *item, *tmp;
+	struct io_buffer *buf;
+	unsigned long index;
 
-		page = list_first_entry(&ctx->io_buffers_pages, struct page, lru);
-		list_del_init(&page->lru);
-		__free_page(page);
+	xa_for_each(&ctx->io_bl_xa, index, bl) {
+		xa_erase(&ctx->io_bl_xa, bl->bgid);
+		io_put_bl(ctx, bl);
+	}
+
+	/*
+	 * Move deferred locked entries to cache before pruning
+	 */
+	spin_lock(&ctx->completion_lock);
+	if (!list_empty(&ctx->io_buffers_comp))
+		list_splice_init(&ctx->io_buffers_comp, &ctx->io_buffers_cache);
+	spin_unlock(&ctx->completion_lock);
+
+	list_for_each_safe(item, tmp, &ctx->io_buffers_cache) {
+		buf = list_entry(item, struct io_buffer, list);
+		kmem_cache_free(io_buf_cachep, buf);
 	}
 }
 
@@ -407,11 +388,12 @@ int io_provide_buffers_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 	return 0;
 }
 
+#define IO_BUFFER_ALLOC_BATCH 64
+
 static int io_refill_buffer_cache(struct io_ring_ctx *ctx)
 {
-	struct io_buffer *buf;
-	struct page *page;
-	int bufs_in_page;
+	struct io_buffer *bufs[IO_BUFFER_ALLOC_BATCH];
+	int allocated;
 
 	/*
 	 * Completions that don't happen inline (eg not under uring_lock) will
@@ -431,21 +413,24 @@ static int io_refill_buffer_cache(struct io_ring_ctx *ctx)
 
 	/*
 	 * No free buffers and no completion entries either. Allocate a new
-	 * page worth of buffer entries and add those to our freelist.
+	 * batch of buffer entries and add those to our freelist.
 	 */
-	page = alloc_page(GFP_KERNEL_ACCOUNT);
-	if (!page)
-		return -ENOMEM;
 
-	list_add(&page->lru, &ctx->io_buffers_pages);
-
-	buf = page_address(page);
-	bufs_in_page = PAGE_SIZE / sizeof(*buf);
-	while (bufs_in_page) {
-		list_add_tail(&buf->list, &ctx->io_buffers_cache);
-		buf++;
-		bufs_in_page--;
+	allocated = kmem_cache_alloc_bulk(io_buf_cachep, GFP_KERNEL_ACCOUNT,
+					  ARRAY_SIZE(bufs), (void **) bufs);
+	if (unlikely(!allocated)) {
+		/*
+		 * Bulk alloc is all-or-nothing. If we fail to get a batch,
+		 * retry single alloc to be on the safe side.
+		 */
+		bufs[0] = kmem_cache_alloc(io_buf_cachep, GFP_KERNEL);
+		if (!bufs[0])
+			return -ENOMEM;
+		allocated = 1;
 	}
+
+	while (allocated)
+		list_add_tail(&bufs[--allocated]->list, &ctx->io_buffers_cache);
 
 	return 0;
 }
@@ -485,12 +470,6 @@ int io_provide_buffers(struct io_kiocb *req, unsigned int issue_flags)
 
 	io_ring_submit_lock(ctx, issue_flags);
 
-	if (unlikely(p->bgid < BGID_ARRAY && !ctx->io_bl)) {
-		ret = io_init_bl_list(ctx);
-		if (ret)
-			goto err;
-	}
-
 	bl = io_buffer_get_list(ctx, p->bgid);
 	if (unlikely(!bl)) {
 		bl = kzalloc(sizeof(*bl), GFP_KERNEL_ACCOUNT);
@@ -503,14 +482,9 @@ int io_provide_buffers(struct io_kiocb *req, unsigned int issue_flags)
 		if (ret) {
 			/*
 			 * Doesn't need rcu free as it was never visible, but
-			 * let's keep it consistent throughout. Also can't
-			 * be a lower indexed array group, as adding one
-			 * where lookup failed cannot happen.
+			 * let's keep it consistent throughout.
 			 */
-			if (p->bgid >= BGID_ARRAY)
-				kfree_rcu(bl, rcu);
-			else
-				WARN_ON_ONCE(1);
+			kfree_rcu(bl, rcu);
 			goto err;
 		}
 	}
@@ -675,12 +649,6 @@ int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 	if (reg.ring_entries >= 65536)
 		return -EINVAL;
 
-	if (unlikely(reg.bgid < BGID_ARRAY && !ctx->io_bl)) {
-		int ret = io_init_bl_list(ctx);
-		if (ret)
-			return ret;
-	}
-
 	bl = io_buffer_get_list(ctx, reg.bgid);
 	if (bl) {
 		/* if mapped buffer ring OR classic exists, don't allow */
@@ -729,31 +697,66 @@ int io_unregister_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 	if (!bl->is_mapped)
 		return -EINVAL;
 
-	__io_remove_buffers(ctx, bl, -1U);
-	if (bl->bgid >= BGID_ARRAY) {
-		xa_erase(&ctx->io_bl_xa, bl->bgid);
-		kfree_rcu(bl, rcu);
-	}
+	xa_erase(&ctx->io_bl_xa, bl->bgid);
+	io_put_bl(ctx, bl);
 	return 0;
 }
 
-void *io_pbuf_get_address(struct io_ring_ctx *ctx, unsigned long bgid)
+int io_register_pbuf_status(struct io_ring_ctx *ctx, void __user *arg)
+{
+	struct io_uring_buf_status buf_status;
+	struct io_buffer_list *bl;
+	int i;
+
+	if (copy_from_user(&buf_status, arg, sizeof(buf_status)))
+		return -EFAULT;
+
+	for (i = 0; i < ARRAY_SIZE(buf_status.resv); i++)
+		if (buf_status.resv[i])
+			return -EINVAL;
+
+	bl = io_buffer_get_list(ctx, buf_status.buf_group);
+	if (!bl)
+		return -ENOENT;
+	if (!bl->is_mapped)
+		return -EINVAL;
+
+	buf_status.head = bl->head;
+	if (copy_to_user(arg, &buf_status, sizeof(buf_status)))
+		return -EFAULT;
+
+	return 0;
+}
+
+struct io_buffer_list *io_pbuf_get_bl(struct io_ring_ctx *ctx,
+				      unsigned long bgid)
 {
 	struct io_buffer_list *bl;
+	bool ret;
 
-	bl = __io_buffer_get_list(ctx, smp_load_acquire(&ctx->io_bl), bgid);
-
-	if (!bl || !bl->is_mmap)
-		return NULL;
 	/*
-	 * Ensure the list is fully setup. Only strictly needed for RCU lookup
-	 * via mmap, and in that case only for the array indexed groups. For
-	 * the xarray lookups, it's either visible and ready, or not at all.
+	 * We have to be a bit careful here - we're inside mmap and cannot grab
+	 * the uring_lock. This means the buffer_list could be simultaneously
+	 * going away, if someone is trying to be sneaky. Look it up under rcu
+	 * so we know it's not going away, and attempt to grab a reference to
+	 * it. If the ref is already zero, then fail the mapping. If successful,
+	 * the caller will call io_put_bl() to drop the the reference at at the
+	 * end. This may then safely free the buffer_list (and drop the pages)
+	 * at that point, vm_insert_pages() would've already grabbed the
+	 * necessary vma references.
 	 */
-	if (!smp_load_acquire(&bl->is_ready))
-		return NULL;
+	rcu_read_lock();
+	bl = xa_load(&ctx->io_bl_xa, bgid);
+	/* must be a mmap'able buffer ring and have pages */
+	ret = false;
+	if (bl && bl->is_mmap)
+		ret = atomic_inc_not_zero(&bl->refs);
+	rcu_read_unlock();
 
-	return bl->buf_ring;
+	if (ret)
+		return bl;
+
+	return ERR_PTR(-EINVAL);
 }
 
 /*

@@ -2,11 +2,7 @@
 /* Copyright(c) 2018 Intel Corporation. */
 
 #include <linux/bpf_trace.h>
-#include <linux/stringify.h>
 #include <net/xdp_sock_drv.h>
-#include <net/xdp.h>
-
-#include "i40e.h"
 #include "i40e_txrx_common.h"
 #include "i40e_xsk.h"
 
@@ -481,8 +477,7 @@ int i40e_clean_rx_irq_zc(struct i40e_ring *rx_ring, int budget)
 			continue;
 		}
 
-		size = (qword & I40E_RXD_QW1_LENGTH_PBUF_MASK) >>
-		       I40E_RXD_QW1_LENGTH_PBUF_SHIFT;
+		size = FIELD_GET(I40E_RXD_QW1_LENGTH_PBUF_MASK, qword);
 		if (!size)
 			break;
 

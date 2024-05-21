@@ -1628,10 +1628,12 @@ EXPORT_SYMBOL(inet_current_timestamp);
 
 int inet_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 {
-	if (sk->sk_family == AF_INET)
+	unsigned int family = READ_ONCE(sk->sk_family);
+
+	if (family == AF_INET)
 		return ip_recv_error(sk, msg, len, addr_len);
 #if IS_ENABLED(CONFIG_IPV6)
-	if (sk->sk_family == AF_INET6)
+	if (family == AF_INET6)
 		return pingv6_ops.ipv6_recv_error(sk, msg, len, addr_len);
 #endif
 	return -EINVAL;
@@ -1851,9 +1853,7 @@ static __net_init int inet_init_net(struct net *net)
 	/*
 	 * Set defaults for local port range
 	 */
-	seqlock_init(&net->ipv4.ip_local_ports.lock);
-	net->ipv4.ip_local_ports.range[0] =  32768;
-	net->ipv4.ip_local_ports.range[1] =  60999;
+	net->ipv4.ip_local_ports.range = 60999u << 16 | 32768u;
 
 	seqlock_init(&net->ipv4.ping_group_range.lock);
 	/*

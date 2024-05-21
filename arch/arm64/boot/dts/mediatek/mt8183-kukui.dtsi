@@ -103,6 +103,14 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
+	/* system wide semi-regulated power rail from charger */
+	reg_vsys: regulator-vsys {
+		compatible = "regulator-fixed";
+		regulator-name = "vsys";
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	reserved_memory: reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -404,8 +412,27 @@
 	Avdd-supply = <&mt6358_vaud28_reg>;
 };
 
+&mt6358regulator {
+	vsys-ldo1-supply = <&reg_vsys>;
+	vsys-ldo2-supply = <&reg_vsys>;
+	vsys-ldo3-supply = <&reg_vsys>;
+	vsys-vcore-supply = <&reg_vsys>;
+	vsys-vdram1-supply = <&reg_vsys>;
+	vsys-vgpu-supply = <&reg_vsys>;
+	vsys-vmodem-supply = <&reg_vsys>;
+	vsys-vpa-supply = <&reg_vsys>;
+	vsys-vproc11-supply = <&reg_vsys>;
+	vsys-vproc12-supply = <&reg_vsys>;
+	vsys-vs1-supply = <&reg_vsys>;
+	vsys-vs2-supply = <&reg_vsys>;
+	vs1-ldo1-supply = <&mt6358_vs1_reg>;
+	vs2-ldo1-supply = <&mt6358_vdram1_reg>;
+	vs2-ldo2-supply = <&mt6358_vs2_reg>;
+	vs2-ldo3-supply = <&mt6358_vs2_reg>;
+	vs2-ldo4-supply = <&mt6358_vs2_reg>;
+};
+
 &mt6358_vgpu_reg {
-	regulator-min-microvolt = <625000>;
 	regulator-max-microvolt = <900000>;
 
 	regulator-coupled-with = <&mt6358_vsram_gpu_reg>;
@@ -818,6 +845,10 @@
 	};
 };
 
+&pmic {
+	interrupts-extended = <&pio 182 IRQ_TYPE_LEVEL_HIGH>;
+};
+
 &pwm0 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -831,7 +862,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&scp_pins>;
 
-	cros_ec {
+	cros-ec-rpmsg {
 		compatible = "google,cros-ec-rpmsg";
 		mediatek,rpmsg-name = "cros-ec-rpmsg";
 	};
@@ -856,14 +887,13 @@
 	status = "okay";
 	cs-gpios = <&pio 86 GPIO_ACTIVE_LOW>;
 
-	cr50@0 {
+	tpm@0 {
 		compatible = "google,cr50";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&h1_int_od_l>;
-		interrupt-parent = <&pio>;
-		interrupts = <153 IRQ_TYPE_EDGE_RISING>;
+		interrupts-extended = <&pio 153 IRQ_TYPE_EDGE_RISING>;
 	};
 };
 
@@ -890,8 +920,7 @@
 		compatible = "google,cros-ec-spi";
 		reg = <0>;
 		spi-max-frequency = <3000000>;
-		interrupt-parent = <&pio>;
-		interrupts = <151 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&pio 151 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ec_ap_int_odl>;
 
@@ -905,10 +934,6 @@
 		usbc_extcon: extcon0 {
 			compatible = "google,extcon-usbc-cros-ec";
 			google,usb-port-id = <0>;
-		};
-
-		cbas {
-			compatible = "google,cros-cbas";
 		};
 
 		typec {

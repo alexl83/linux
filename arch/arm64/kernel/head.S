@@ -482,7 +482,7 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 
 	str_l	x21, __fdt_pointer, x5		// Save FDT pointer
 
-	ldr_l	x4, kimage_vaddr		// Save the offset between
+	adrp	x4, _text			// Save the offset between
 	sub	x4, x4, x0			// the kernel virtual and
 	str_l	x4, kimage_voffset, x5		// physical mappings
 
@@ -569,6 +569,11 @@ SYM_INNER_LABEL(init_el2, SYM_L_LOCAL)
 	adr_l	x1, __hyp_text_end
 	adr_l	x2, dcache_clean_poc
 	blr	x2
+
+	mov_q	x0, INIT_SCTLR_EL2_MMU_OFF
+	pre_disable_mmu_workaround
+	msr	sctlr_el2, x0
+	isb
 0:
 	mov_q	x0, HCR_HOST_NVHE_FLAGS
 	msr	hcr_el2, x0

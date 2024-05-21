@@ -29,6 +29,7 @@
 
 #define SC16IS7XX_NAME			"sc16is7xx"
 #define SC16IS7XX_MAX_DEVS		8
+#define SC16IS7XX_MAX_PORTS		2 /* Maximum number of UART ports per IC. */
 
 /* SC16IS7XX register definitions */
 #define SC16IS7XX_RHR_REG		(0x00) /* RX FIFO */
@@ -224,7 +225,7 @@
  * trigger levels. Trigger levels from 4 characters to 60 characters are
  * available with a granularity of four.
  *
- * When the trigger level setting in TLR is zero, the SC16IS740/750/760 uses the
+ * When the trigger level setting in TLR is zero, the SC16IS74x/75x/76x uses the
  * trigger level setting defined in FCR. If TLR has non-zero trigger level value
  * the trigger level defined in FCR is discarded. This applies to both transmit
  * FIFO and receive FIFO trigger level setting.
@@ -235,7 +236,7 @@
 #define SC16IS7XX_TLR_TX_TRIGGER(words)	((((words) / 4) & 0x0f) << 0)
 #define SC16IS7XX_TLR_RX_TRIGGER(words)	((((words) / 4) & 0x0f) << 4)
 
-/* IOControl register bits (Only 750/760) */
+/* IOControl register bits (Only 75x/76x) */
 #define SC16IS7XX_IOCONTROL_LATCH_BIT	(1 << 0) /* Enable input latching */
 #define SC16IS7XX_IOCONTROL_MODEM_A_BIT	(1 << 1) /* Enable GPIO[7:4] as modem A pins */
 #define SC16IS7XX_IOCONTROL_MODEM_B_BIT	(1 << 2) /* Enable GPIO[3:0] as modem B pins */
@@ -250,9 +251,9 @@
 #define SC16IS7XX_EFCR_RTS_INVERT_BIT	(1 << 5) /* RTS output inversion */
 #define SC16IS7XX_EFCR_IRDA_MODE_BIT	(1 << 7) /* IrDA mode
 						  * 0 = rate upto 115.2 kbit/s
-						  *   - Only 750/760
+						  *   - Only 75x/76x
 						  * 1 = rate upto 1.152 Mbit/s
-						  *   - Only 760
+						  *   - Only 76x
 						  */
 
 /* EFR register bits */
@@ -329,8 +330,9 @@ struct sc16is7xx_one {
 	struct kthread_work		reg_work;
 	struct kthread_delayed_work	ms_work;
 	struct sc16is7xx_one_config	config;
-	bool				irda_mode;
 	unsigned int			old_mctrl;
+	u8				old_lcr; /* Value before EFR access. */
+	bool				irda_mode;
 };
 
 struct sc16is7xx_port {
@@ -347,18 +349,15 @@ struct sc16is7xx_port {
 	struct sc16is7xx_one		p[];
 };
 
-static unsigned long sc16is7xx_lines;
+static DECLARE_BITMAP(sc16is7xx_lines, SC16IS7XX_MAX_DEVS);
 
 static struct uart_driver sc16is7xx_uart = {
 	.owner		= THIS_MODULE,
+	.driver_name    = SC16IS7XX_NAME,
 	.dev_name	= "ttySC",
 	.nr		= SC16IS7XX_MAX_DEVS,
 };
 
-static void sc16is7xx_ier_set(struct uart_port *port, u8 bit);
-static void sc16is7xx_stop_tx(struct uart_port *port);
-
-#define to_sc16is7xx_port(p,e)	((container_of((p), struct sc16is7xx_port, e)))
 #define to_sc16is7xx_one(p,e)	((container_of((p), struct sc16is7xx_one, e)))
 
 static u8 sc16is7xx_port_read(struct uart_port *port, u8 reg)
@@ -378,17 +377,15 @@ static void sc16is7xx_port_write(struct uart_port *port, u8 reg, u8 val)
 	regmap_write(one->regmap, reg, val);
 }
 
-static void sc16is7xx_fifo_read(struct uart_port *port, unsigned int rxlen)
+static void sc16is7xx_fifo_read(struct uart_port *port, u8 *rxbuf, unsigned int rxlen)
 {
-	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
 	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
 
-	regmap_noinc_read(one->regmap, SC16IS7XX_RHR_REG, s->buf, rxlen);
+	regmap_noinc_read(one->regmap, SC16IS7XX_RHR_REG, rxbuf, rxlen);
 }
 
-static void sc16is7xx_fifo_write(struct uart_port *port, u8 to_send)
+static void sc16is7xx_fifo_write(struct uart_port *port, u8 *txbuf, u8 to_send)
 {
-	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
 	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
 
 	/*
@@ -398,7 +395,7 @@ static void sc16is7xx_fifo_write(struct uart_port *port, u8 to_send)
 	if (unlikely(!to_send))
 		return;
 
-	regmap_noinc_write(one->regmap, SC16IS7XX_THR_REG, s->buf, to_send);
+	regmap_noinc_write(one->regmap, SC16IS7XX_THR_REG, txbuf, to_send);
 }
 
 static void sc16is7xx_port_update(struct uart_port *port, u8 reg,
@@ -414,6 +411,85 @@ static void sc16is7xx_power(struct uart_port *port, int on)
 	sc16is7xx_port_update(port, SC16IS7XX_IER_REG,
 			      SC16IS7XX_IER_SLEEP_BIT,
 			      on ? 0 : SC16IS7XX_IER_SLEEP_BIT);
+}
+
+/*
+ * In an amazing feat of design, the Enhanced Features Register (EFR)
+ * shares the address of the Interrupt Identification Register (IIR).
+ * Access to EFR is switched on by writing a magic value (0xbf) to the
+ * Line Control Register (LCR). Any interrupt firing during this time will
+ * see the EFR where it expects the IIR to be, leading to
+ * "Unexpected interrupt" messages.
+ *
+ * Prevent this possibility by claiming a mutex while accessing the EFR,
+ * and claiming the same mutex from within the interrupt handler. This is
+ * similar to disabling the interrupt, but that doesn't work because the
+ * bulk of the interrupt processing is run as a workqueue job in thread
+ * context.
+ */
+static void sc16is7xx_efr_lock(struct uart_port *port)
+{
+	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
+
+	mutex_lock(&one->efr_lock);
+
+	/* Backup content of LCR. */
+	one->old_lcr = sc16is7xx_port_read(port, SC16IS7XX_LCR_REG);
+
+	/* Enable access to Enhanced register set */
+	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG, SC16IS7XX_LCR_CONF_MODE_B);
+
+	/* Disable cache updates when writing to EFR registers */
+	regcache_cache_bypass(one->regmap, true);
+}
+
+static void sc16is7xx_efr_unlock(struct uart_port *port)
+{
+	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
+
+	/* Re-enable cache updates when writing to normal registers */
+	regcache_cache_bypass(one->regmap, false);
+
+	/* Restore original content of LCR */
+	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG, one->old_lcr);
+
+	mutex_unlock(&one->efr_lock);
+}
+
+static void sc16is7xx_ier_clear(struct uart_port *port, u8 bit)
+{
+	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
+	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
+
+	lockdep_assert_held_once(&port->lock);
+
+	one->config.flags |= SC16IS7XX_RECONF_IER;
+	one->config.ier_mask |= bit;
+	one->config.ier_val &= ~bit;
+	kthread_queue_work(&s->kworker, &one->reg_work);
+}
+
+static void sc16is7xx_ier_set(struct uart_port *port, u8 bit)
+{
+	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
+	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
+
+	lockdep_assert_held_once(&port->lock);
+
+	one->config.flags |= SC16IS7XX_RECONF_IER;
+	one->config.ier_mask |= bit;
+	one->config.ier_val |= bit;
+	kthread_queue_work(&s->kworker, &one->reg_work);
+}
+
+static void sc16is7xx_stop_tx(struct uart_port *port)
+{
+	sc16is7xx_ier_clear(port, SC16IS7XX_IER_THRI_BIT);
+}
+
+static void sc16is7xx_stop_rx(struct uart_port *port)
+{
+	sc16is7xx_ier_clear(port, SC16IS7XX_IER_RDI_BIT);
 }
 
 static const struct sc16is7xx_devtype sc16is74x_devtype = {
@@ -459,10 +535,8 @@ static bool sc16is7xx_regmap_volatile(struct device *dev, unsigned int reg)
 	case SC16IS7XX_IOCONTROL_REG:
 		return true;
 	default:
-		break;
+		return false;
 	}
-
-	return false;
 }
 
 static bool sc16is7xx_regmap_precious(struct device *dev, unsigned int reg)
@@ -471,10 +545,8 @@ static bool sc16is7xx_regmap_precious(struct device *dev, unsigned int reg)
 	case SC16IS7XX_RHR_REG:
 		return true;
 	default:
-		break;
+		return false;
 	}
-
-	return false;
 }
 
 static bool sc16is7xx_regmap_noinc(struct device *dev, unsigned int reg)
@@ -489,50 +561,24 @@ static int sc16is7xx_set_baud(struct uart_port *port, int baud)
 	u8 prescaler = 0;
 	unsigned long clk = port->uartclk, div = clk / 16 / baud;
 
-	if (div > 0xffff) {
+	if (div >= BIT(16)) {
 		prescaler = SC16IS7XX_MCR_CLKSEL_BIT;
 		div /= 4;
 	}
 
-	/* In an amazing feat of design, the Enhanced Features Register shares
-	 * the address of the Interrupt Identification Register, and is
-	 * switched in by writing a magic value (0xbf) to the Line Control
-	 * Register. Any interrupt firing during this time will see the EFR
-	 * where it expects the IIR to be, leading to "Unexpected interrupt"
-	 * messages.
-	 *
-	 * Prevent this possibility by claiming a mutex while accessing the
-	 * EFR, and claiming the same mutex from within the interrupt handler.
-	 * This is similar to disabling the interrupt, but that doesn't work
-	 * because the bulk of the interrupt processing is run as a workqueue
-	 * job in thread context.
-	 */
-	mutex_lock(&one->efr_lock);
-
-	lcr = sc16is7xx_port_read(port, SC16IS7XX_LCR_REG);
-
-	/* Open the LCR divisors for configuration */
-	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG,
-			     SC16IS7XX_LCR_CONF_MODE_B);
-
 	/* Enable enhanced features */
-	regcache_cache_bypass(one->regmap, true);
+	sc16is7xx_efr_lock(port);
 	sc16is7xx_port_update(port, SC16IS7XX_EFR_REG,
 			      SC16IS7XX_EFR_ENABLE_BIT,
 			      SC16IS7XX_EFR_ENABLE_BIT);
-
-	regcache_cache_bypass(one->regmap, false);
-
-	/* Put LCR back to the normal mode */
-	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG, lcr);
-
-	mutex_unlock(&one->efr_lock);
+	sc16is7xx_efr_unlock(port);
 
 	sc16is7xx_port_update(port, SC16IS7XX_MCR_REG,
 			      SC16IS7XX_MCR_CLKSEL_BIT,
 			      prescaler);
 
-	/* Open the LCR divisors for configuration */
+	/* Backup LCR and access special register set (DLL/DLH) */
+	lcr = sc16is7xx_port_read(port, SC16IS7XX_LCR_REG);
 	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG,
 			     SC16IS7XX_LCR_CONF_MODE_A);
 
@@ -542,7 +588,7 @@ static int sc16is7xx_set_baud(struct uart_port *port, int baud)
 	sc16is7xx_port_write(port, SC16IS7XX_DLL_REG, div % 256);
 	regcache_cache_bypass(one->regmap, false);
 
-	/* Put LCR back to the normal mode */
+	/* Restore LCR and access to general register set */
 	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG, lcr);
 
 	return DIV_ROUND_CLOSEST(clk / 16, div);
@@ -578,7 +624,7 @@ static void sc16is7xx_handle_rx(struct uart_port *port, unsigned int rxlen,
 			s->buf[0] = sc16is7xx_port_read(port, SC16IS7XX_RHR_REG);
 			bytes_read = 1;
 		} else {
-			sc16is7xx_fifo_read(port, rxlen);
+			sc16is7xx_fifo_read(port, s->buf, rxlen);
 			bytes_read = rxlen;
 		}
 
@@ -651,7 +697,7 @@ static void sc16is7xx_handle_tx(struct uart_port *port)
 	/* Get length of data pending in circular buffer */
 	to_send = uart_circ_chars_pending(xmit);
 	if (likely(to_send)) {
-		/* Limit to size of TX FIFO */
+		/* Limit to space available in TX FIFO */
 		txlen = sc16is7xx_port_read(port, SC16IS7XX_TXLVL_REG);
 		if (txlen > SC16IS7XX_FIFO_SIZE) {
 			dev_err_ratelimited(port->dev,
@@ -667,7 +713,7 @@ static void sc16is7xx_handle_tx(struct uart_port *port)
 			uart_xmit_advance(port, 1);
 		}
 
-		sc16is7xx_fifo_write(port, to_send);
+		sc16is7xx_fifo_write(port, s->buf, to_send);
 	}
 
 	uart_port_lock_irqsave(port, &flags);
@@ -872,42 +918,6 @@ static void sc16is7xx_reg_proc(struct kthread_work *ws)
 		sc16is7xx_reconf_rs485(&one->port);
 }
 
-static void sc16is7xx_ier_clear(struct uart_port *port, u8 bit)
-{
-	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
-	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
-
-	lockdep_assert_held_once(&port->lock);
-
-	one->config.flags |= SC16IS7XX_RECONF_IER;
-	one->config.ier_mask |= bit;
-	one->config.ier_val &= ~bit;
-	kthread_queue_work(&s->kworker, &one->reg_work);
-}
-
-static void sc16is7xx_ier_set(struct uart_port *port, u8 bit)
-{
-	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
-	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
-
-	lockdep_assert_held_once(&port->lock);
-
-	one->config.flags |= SC16IS7XX_RECONF_IER;
-	one->config.ier_mask |= bit;
-	one->config.ier_val |= bit;
-	kthread_queue_work(&s->kworker, &one->reg_work);
-}
-
-static void sc16is7xx_stop_tx(struct uart_port *port)
-{
-	sc16is7xx_ier_clear(port, SC16IS7XX_IER_THRI_BIT);
-}
-
-static void sc16is7xx_stop_rx(struct uart_port *port)
-{
-	sc16is7xx_ier_clear(port, SC16IS7XX_IER_RDI_BIT);
-}
-
 static void sc16is7xx_ms_proc(struct kthread_work *ws)
 {
 	struct sc16is7xx_one *one = to_sc16is7xx_one(ws, ms_work.work);
@@ -1057,17 +1067,7 @@ static void sc16is7xx_set_termios(struct uart_port *port,
 	if (!(termios->c_cflag & CREAD))
 		port->ignore_status_mask |= SC16IS7XX_LSR_BRK_ERROR_MASK;
 
-	/* As above, claim the mutex while accessing the EFR. */
-	mutex_lock(&one->efr_lock);
-
-	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG,
-			     SC16IS7XX_LCR_CONF_MODE_B);
-
 	/* Configure flow control */
-	regcache_cache_bypass(one->regmap, true);
-	sc16is7xx_port_write(port, SC16IS7XX_XON1_REG, termios->c_cc[VSTART]);
-	sc16is7xx_port_write(port, SC16IS7XX_XOFF1_REG, termios->c_cc[VSTOP]);
-
 	port->status &= ~(UPSTAT_AUTOCTS | UPSTAT_AUTORTS);
 	if (termios->c_cflag & CRTSCTS) {
 		flow |= SC16IS7XX_EFR_AUTOCTS_BIT |
@@ -1079,16 +1079,16 @@ static void sc16is7xx_set_termios(struct uart_port *port,
 	if (termios->c_iflag & IXOFF)
 		flow |= SC16IS7XX_EFR_SWFLOW1_BIT;
 
-	sc16is7xx_port_update(port,
-			      SC16IS7XX_EFR_REG,
-			      SC16IS7XX_EFR_FLOWCTRL_BITS,
-			      flow);
-	regcache_cache_bypass(one->regmap, false);
-
 	/* Update LCR register */
 	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG, lcr);
 
-	mutex_unlock(&one->efr_lock);
+	/* Update EFR registers */
+	sc16is7xx_efr_lock(port);
+	sc16is7xx_port_write(port, SC16IS7XX_XON1_REG, termios->c_cc[VSTART]);
+	sc16is7xx_port_write(port, SC16IS7XX_XOFF1_REG, termios->c_cc[VSTOP]);
+	sc16is7xx_port_update(port, SC16IS7XX_EFR_REG,
+			      SC16IS7XX_EFR_FLOWCTRL_BITS, flow);
+	sc16is7xx_efr_unlock(port);
 
 	/* Get baud rate generator configuration */
 	baud = uart_get_baud_rate(port, termios, old,
@@ -1393,6 +1393,29 @@ static int sc16is7xx_setup_gpio_chip(struct sc16is7xx_port *s)
 }
 #endif
 
+static void sc16is7xx_setup_irda_ports(struct sc16is7xx_port *s)
+{
+	int i;
+	int ret;
+	int count;
+	u32 irda_port[SC16IS7XX_MAX_PORTS];
+	struct device *dev = s->p[0].port.dev;
+
+	count = device_property_count_u32(dev, "irda-mode-ports");
+	if (count < 0 || count > ARRAY_SIZE(irda_port))
+		return;
+
+	ret = device_property_read_u32_array(dev, "irda-mode-ports",
+					     irda_port, count);
+	if (ret)
+		return;
+
+	for (i = 0; i < count; i++) {
+		if (irda_port[i] < s->devtype->nr_uart)
+			s->p[irda_port[i]].irda_mode = true;
+	}
+}
+
 /*
  * Configure ports designated to operate as modem control lines.
  */
@@ -1402,7 +1425,7 @@ static int sc16is7xx_setup_mctrl_ports(struct sc16is7xx_port *s,
 	int i;
 	int ret;
 	int count;
-	u32 mctrl_port[2];
+	u32 mctrl_port[SC16IS7XX_MAX_PORTS];
 	struct device *dev = s->p[0].port.dev;
 
 	count = device_property_count_u32(dev, "nxp,modem-control-line-ports");
@@ -1514,7 +1537,7 @@ static int sc16is7xx_probe(struct device *dev,
 		     SC16IS7XX_IOCONTROL_SRESET_BIT);
 
 	for (i = 0; i < devtype->nr_uart; ++i) {
-		s->p[i].port.line = find_first_zero_bit(&sc16is7xx_lines,
+		s->p[i].port.line = find_first_zero_bit(sc16is7xx_lines,
 							SC16IS7XX_MAX_DEVS);
 		if (s->p[i].port.line >= SC16IS7XX_MAX_DEVS) {
 			ret = -ERANGE;
@@ -1565,7 +1588,7 @@ static int sc16is7xx_probe(struct device *dev,
 		if (ret)
 			goto out_ports;
 
-		set_bit(s->p[i].port.line, &sc16is7xx_lines);
+		set_bit(s->p[i].port.line, sc16is7xx_lines);
 
 		/* Enable EFR */
 		sc16is7xx_port_write(&s->p[i].port, SC16IS7XX_LCR_REG,
@@ -1586,16 +1609,7 @@ static int sc16is7xx_probe(struct device *dev,
 		sc16is7xx_power(&s->p[i].port, 0);
 	}
 
-	if (dev->of_node) {
-		struct property *prop;
-		const __be32 *p;
-		u32 u;
-
-		of_property_for_each_u32(dev->of_node, "irda-mode-ports",
-					 prop, p, u)
-			if (u < devtype->nr_uart)
-				s->p[u].irda_mode = true;
-	}
+	sc16is7xx_setup_irda_ports(s);
 
 	ret = sc16is7xx_setup_mctrl_ports(s, regmaps[0]);
 	if (ret)
@@ -1633,7 +1647,7 @@ static int sc16is7xx_probe(struct device *dev,
 
 out_ports:
 	for (i = 0; i < devtype->nr_uart; i++)
-		if (test_and_clear_bit(s->p[i].port.line, &sc16is7xx_lines))
+		if (test_and_clear_bit(s->p[i].port.line, sc16is7xx_lines))
 			uart_remove_one_port(&sc16is7xx_uart, &s->p[i].port);
 
 	kthread_stop(s->kworker_task);
@@ -1656,7 +1670,7 @@ static void sc16is7xx_remove(struct device *dev)
 
 	for (i = 0; i < s->devtype->nr_uart; i++) {
 		kthread_cancel_delayed_work_sync(&s->p[i].ms_work);
-		if (test_and_clear_bit(s->p[i].port.line, &sc16is7xx_lines))
+		if (test_and_clear_bit(s->p[i].port.line, sc16is7xx_lines))
 			uart_remove_one_port(&sc16is7xx_uart, &s->p[i].port);
 		sc16is7xx_power(&s->p[i].port, 0);
 	}
@@ -1713,7 +1727,7 @@ static unsigned int sc16is7xx_regmap_port_mask(unsigned int port_id)
 static int sc16is7xx_spi_probe(struct spi_device *spi)
 {
 	const struct sc16is7xx_devtype *devtype;
-	struct regmap *regmaps[2];
+	struct regmap *regmaps[SC16IS7XX_MAX_PORTS];
 	unsigned int i;
 	int ret;
 
@@ -1729,15 +1743,9 @@ static int sc16is7xx_spi_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	if (spi->dev.of_node) {
-		devtype = device_get_match_data(&spi->dev);
-		if (!devtype)
-			return -ENODEV;
-	} else {
-		const struct spi_device_id *id_entry = spi_get_device_id(spi);
-
-		devtype = (struct sc16is7xx_devtype *)id_entry->driver_data;
-	}
+	devtype = spi_get_device_match_data(spi);
+	if (!devtype)
+		return dev_err_probe(&spi->dev, -ENODEV, "Failed to match device\n");
 
 	for (i = 0; i < devtype->nr_uart; i++) {
 		regcfg.name = sc16is7xx_regmap_name(i);
@@ -1782,25 +1790,18 @@ static struct spi_driver sc16is7xx_spi_uart_driver = {
 	.remove		= sc16is7xx_spi_remove,
 	.id_table	= sc16is7xx_spi_id_table,
 };
-
-MODULE_ALIAS("spi:sc16is7xx");
 #endif
 
 #ifdef CONFIG_SERIAL_SC16IS7XX_I2C
 static int sc16is7xx_i2c_probe(struct i2c_client *i2c)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(i2c);
 	const struct sc16is7xx_devtype *devtype;
-	struct regmap *regmaps[2];
+	struct regmap *regmaps[SC16IS7XX_MAX_PORTS];
 	unsigned int i;
 
-	if (i2c->dev.of_node) {
-		devtype = device_get_match_data(&i2c->dev);
-		if (!devtype)
-			return -ENODEV;
-	} else {
-		devtype = (struct sc16is7xx_devtype *)id->driver_data;
-	}
+	devtype = i2c_get_match_data(i2c);
+	if (!devtype)
+		return dev_err_probe(&i2c->dev, -ENODEV, "Failed to match device\n");
 
 	for (i = 0; i < devtype->nr_uart; i++) {
 		regcfg.name = sc16is7xx_regmap_name(i);

@@ -828,7 +828,11 @@ void cdns3_gadget_giveback(struct cdns3_endpoint *priv_ep,
 			return;
 	}
 
-	if (request->complete) {
+	/*
+	 * zlp request is appended by driver, needn't call usb_gadget_giveback_request() to notify
+	 * gadget composite driver.
+	 */
+	if (request->complete && request->buf != priv_dev->zlp_buf) {
 		spin_unlock(&priv_dev->lock);
 		usb_gadget_giveback_request(&priv_ep->endpoint,
 					    request);
@@ -1128,6 +1132,7 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 	u16 total_tdl = 0;
 	struct scatterlist *s = NULL;
 	bool sg_supported = !!(request->num_mapped_sgs);
+	u32 ioc = request->no_interrupt ? 0 : TRB_IOC;
 
 	num_trb_req = sg_supported ? request->num_mapped_sgs : 1;
 
@@ -1284,11 +1289,11 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 			control |= pcs;
 
 		if (priv_ep->type == USB_ENDPOINT_XFER_ISOC  && !priv_ep->dir) {
-			control |= TRB_IOC | TRB_ISP;
+			control |= ioc | TRB_ISP;
 		} else {
 			/* for last element in TD or in SG list */
 			if (sg_iter == (num_trb - 1) && sg_iter != 0)
-				control |= pcs | TRB_IOC | TRB_ISP;
+				control |= pcs | ioc | TRB_ISP;
 		}
 
 		if (sg_iter)
@@ -1319,7 +1324,7 @@ static int cdns3_ep_run_transfer(struct cdns3_endpoint *priv_ep,
 	priv_req->num_of_trb = num_trb;
 
 	if (sg_iter == 1)
-		trb->control |= cpu_to_le32(TRB_IOC | TRB_ISP);
+		trb->control |= cpu_to_le32(ioc | TRB_ISP);
 
 	if (priv_dev->dev_ver < DEV_VER_V2 &&
 	    (priv_ep->flags & EP_TDLCHK_EN)) {
@@ -2539,11 +2544,11 @@ static int cdns3_gadget_ep_disable(struct usb_ep *ep)
 
 	while (!list_empty(&priv_ep->wa2_descmiss_req_list)) {
 		priv_req = cdns3_next_priv_request(&priv_ep->wa2_descmiss_req_list);
+		list_del_init(&priv_req->list);
 
 		kfree(priv_req->request.buf);
 		cdns3_gadget_ep_free_request(&priv_ep->endpoint,
 					     &priv_req->request);
-		list_del_init(&priv_req->list);
 		--priv_ep->wa2_counter;
 	}
 

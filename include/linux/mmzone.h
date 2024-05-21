@@ -22,17 +22,20 @@
 #include <linux/mm_types.h>
 #include <linux/page-flags.h>
 #include <linux/local_lock.h>
+#include <linux/zswap.h>
 #include <asm/page.h>
 
 /* Free memory management - zoned buddy allocator.  */
 #ifndef CONFIG_ARCH_FORCE_MAX_ORDER
-#define MAX_ORDER 10
+#define MAX_PAGE_ORDER 10
 #else
-#define MAX_ORDER CONFIG_ARCH_FORCE_MAX_ORDER
+#define MAX_PAGE_ORDER CONFIG_ARCH_FORCE_MAX_ORDER
 #endif
-#define MAX_ORDER_NR_PAGES (1 << MAX_ORDER)
+#define MAX_ORDER_NR_PAGES (1 << MAX_PAGE_ORDER)
 
 #define IS_MAX_ORDER_ALIGNED(pfn) IS_ALIGNED(pfn, MAX_ORDER_NR_PAGES)
+
+#define NR_PAGE_ORDERS (MAX_PAGE_ORDER + 1)
 
 /*
  * PAGE_ALLOC_COSTLY_ORDER is the order at which allocations are deemed
@@ -95,7 +98,7 @@ static inline bool migratetype_is_mergeable(int mt)
 }
 
 #define for_each_migratetype_order(order, type) \
-	for (order = 0; order <= MAX_ORDER; order++) \
+	for (order = 0; order < NR_PAGE_ORDERS; order++) \
 		for (type = 0; type < MIGRATE_TYPES; type++)
 
 extern int page_group_by_mobility_disabled;
@@ -207,6 +210,10 @@ enum node_stat_item {
 	PGPROMOTE_SUCCESS,	/* promote successfully */
 	PGPROMOTE_CANDIDATE,	/* candidate pages to promote */
 #endif
+	/* PGDEMOTE_*: pages demoted */
+	PGDEMOTE_KSWAPD,
+	PGDEMOTE_DIRECT,
+	PGDEMOTE_KHUGEPAGED,
 	NR_VM_NODE_STAT_ITEMS
 };
 
@@ -435,14 +442,12 @@ struct lru_gen_folio {
 	atomic_long_t refaulted[NR_HIST_GENS][ANON_AND_FILE][MAX_NR_TIERS];
 	/* whether the multi-gen LRU is enabled */
 	bool enabled;
-#ifdef CONFIG_MEMCG
 	/* the memcg generation this lru_gen_folio belongs to */
 	u8 gen;
 	/* the list segment this lru_gen_folio belongs to */
 	u8 seg;
 	/* per-node lru_gen_folio list for global reclaim */
 	struct hlist_nulls_node list;
-#endif
 };
 
 enum {
@@ -487,11 +492,6 @@ struct lru_gen_mm_walk {
 	bool can_swap;
 	bool force_scan;
 };
-
-void lru_gen_init_lruvec(struct lruvec *lruvec);
-void lru_gen_look_around(struct page_vma_mapped_walk *pvmw);
-
-#ifdef CONFIG_MEMCG
 
 /*
  * For each node, memcgs are divided into two generations: the old and the
@@ -550,6 +550,8 @@ struct lru_gen_memcg {
 };
 
 void lru_gen_init_pgdat(struct pglist_data *pgdat);
+void lru_gen_init_lruvec(struct lruvec *lruvec);
+void lru_gen_look_around(struct page_vma_mapped_walk *pvmw);
 
 void lru_gen_init_memcg(struct mem_cgroup *memcg);
 void lru_gen_exit_memcg(struct mem_cgroup *memcg);
@@ -557,19 +559,6 @@ void lru_gen_online_memcg(struct mem_cgroup *memcg);
 void lru_gen_offline_memcg(struct mem_cgroup *memcg);
 void lru_gen_release_memcg(struct mem_cgroup *memcg);
 void lru_gen_soft_reclaim(struct mem_cgroup *memcg, int nid);
-
-#else /* !CONFIG_MEMCG */
-
-#define MEMCG_NR_GENS	1
-
-struct lru_gen_memcg {
-};
-
-static inline void lru_gen_init_pgdat(struct pglist_data *pgdat)
-{
-}
-
-#endif /* CONFIG_MEMCG */
 
 #else /* !CONFIG_LRU_GEN */
 
@@ -584,8 +573,6 @@ static inline void lru_gen_init_lruvec(struct lruvec *lruvec)
 static inline void lru_gen_look_around(struct page_vma_mapped_walk *pvmw)
 {
 }
-
-#ifdef CONFIG_MEMCG
 
 static inline void lru_gen_init_memcg(struct mem_cgroup *memcg)
 {
@@ -611,8 +598,6 @@ static inline void lru_gen_soft_reclaim(struct mem_cgroup *memcg, int nid)
 {
 }
 
-#endif /* CONFIG_MEMCG */
-
 #endif /* CONFIG_LRU_GEN */
 
 struct lruvec {
@@ -635,16 +620,17 @@ struct lruvec {
 #ifdef CONFIG_LRU_GEN
 	/* evictable pages divided into generations */
 	struct lru_gen_folio		lrugen;
+#ifdef CONFIG_LRU_GEN_WALKS_MMU
 	/* to concurrently iterate lru_gen_mm_list */
 	struct lru_gen_mm_state		mm_state;
 #endif
+#endif /* CONFIG_LRU_GEN */
 #ifdef CONFIG_MEMCG
 	struct pglist_data *pgdat;
 #endif
+	struct zswap_lruvec_state zswap_lruvec_state;
 };
 
-/* Isolate unmapped pages */
-#define ISOLATE_UNMAPPED	((__force isolate_mode_t)0x2)
 /* Isolate for asynchronous migration */
 #define ISOLATE_ASYNC_MIGRATE	((__force isolate_mode_t)0x4)
 /* Isolate unevictable pages */
@@ -680,15 +666,34 @@ enum zone_watermarks {
 #define high_wmark_pages(z) (z->_watermark[WMARK_HIGH] + z->watermark_boost)
 #define wmark_pages(z, i) (z->_watermark[i] + z->watermark_boost)
 
+/*
+ * Flags used in pcp->flags field.
+ *
+ * PCPF_PREV_FREE_HIGH_ORDER: a high-order page is freed in the
+ * previous page freeing.  To avoid to drain PCP for an accident
+ * high-order page freeing.
+ *
+ * PCPF_FREE_HIGH_BATCH: preserve "pcp->batch" pages in PCP before
+ * draining PCP for consecutive high-order pages freeing without
+ * allocation if data cache slice of CPU is large enough.  To reduce
+ * zone lock contention and keep cache-hot pages reusing.
+ */
+#define	PCPF_PREV_FREE_HIGH_ORDER	BIT(0)
+#define	PCPF_FREE_HIGH_BATCH		BIT(1)
+
 struct per_cpu_pages {
 	spinlock_t lock;	/* Protects lists field */
 	int count;		/* number of pages in the list */
 	int high;		/* high watermark, emptying needed */
+	int high_min;		/* min high watermark */
+	int high_max;		/* max high watermark */
 	int batch;		/* chunk size for buddy add/remove */
-	short free_factor;	/* batch scaling factor during free */
+	u8 flags;		/* protected by pcp->lock */
+	u8 alloc_factor;	/* batch scaling factor during allocate */
 #ifdef CONFIG_NUMA
-	short expire;		/* When 0, remote pagesets are drained */
+	u8 expire;		/* When 0, remote pagesets are drained */
 #endif
+	short free_count;	/* consecutive free count */
 
 	/* Lists of pages, one per migrate type stored on the pcp-lists */
 	struct list_head lists[NR_PCP_LISTS];
@@ -841,7 +846,8 @@ struct zone {
 	 * the high and batch values are copied to individual pagesets for
 	 * faster access
 	 */
-	int pageset_high;
+	int pageset_high_min;
+	int pageset_high_max;
 	int pageset_batch;
 
 #ifndef CONFIG_SPARSEMEM
@@ -929,10 +935,10 @@ struct zone {
 	CACHELINE_PADDING(_pad1_);
 
 	/* free areas of different sizes */
-	struct free_area	free_area[MAX_ORDER + 1];
+	struct free_area	free_area[NR_PAGE_ORDERS];
 
 #ifdef CONFIG_UNACCEPTED_MEMORY
-	/* Pages to be accepted. All pages on the list are MAX_ORDER */
+	/* Pages to be accepted. All pages on the list are MAX_PAGE_ORDER */
 	struct list_head	unaccepted_pages;
 #endif
 
@@ -1002,6 +1008,7 @@ enum zone_flags {
 					 * Cleared when kswapd is woken.
 					 */
 	ZONE_RECLAIM_ACTIVE,		/* kswapd may be scanning the zone. */
+	ZONE_BELOW_HIGH,		/* zone is below high watermark. */
 };
 
 static inline unsigned long zone_managed_pages(struct zone *zone)
@@ -1741,8 +1748,8 @@ static inline bool movable_only_nodes(nodemask_t *nodes)
 #define SECTION_BLOCKFLAGS_BITS \
 	((1UL << (PFN_SECTION_SHIFT - pageblock_order)) * NR_PAGEBLOCK_BITS)
 
-#if (MAX_ORDER + PAGE_SHIFT) > SECTION_SIZE_BITS
-#error Allocator MAX_ORDER exceeds SECTION_SIZE
+#if (MAX_PAGE_ORDER + PAGE_SHIFT) > SECTION_SIZE_BITS
+#error Allocator MAX_PAGE_ORDER exceeds SECTION_SIZE
 #endif
 
 static inline unsigned long pfn_to_section_nr(unsigned long pfn)
@@ -2006,9 +2013,9 @@ static inline int pfn_valid(unsigned long pfn)
 	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
 		return 0;
 	ms = __pfn_to_section(pfn);
-	rcu_read_lock();
+	rcu_read_lock_sched();
 	if (!valid_section(ms)) {
-		rcu_read_unlock();
+		rcu_read_unlock_sched();
 		return 0;
 	}
 	/*
@@ -2016,7 +2023,7 @@ static inline int pfn_valid(unsigned long pfn)
 	 * the entire section-sized span.
 	 */
 	ret = early_section(ms) || pfn_section_valid(ms, pfn);
-	rcu_read_unlock();
+	rcu_read_unlock_sched();
 
 	return ret;
 }

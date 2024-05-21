@@ -726,6 +726,7 @@ CONFIG_SENSORS_W83627HF=m
 CONFIG_SENSORS_ACPI_POWER=m
 CONFIG_SENSORS_ASUS_WMI=m
 CONFIG_SENSORS_ASUS_EC=m
+CONFIG_SENSORS_HP_WMI=m
 
 ##
 ## file: drivers/hwtracing/intel_th/Kconfig
@@ -1314,37 +1315,10 @@ CONFIG_WANXL=m
 CONFIG_FARSYNC=m
 
 ##
-## file: drivers/net/wireless/atmel/Kconfig
-##
-CONFIG_ATMEL=m
-CONFIG_PCI_ATMEL=m
-CONFIG_PCMCIA_ATMEL=m
-
-##
 ## file: drivers/net/wireless/broadcom/brcm80211/brcmfmac/Kconfig
 ##
 #. Sony Vaio laptops
 CONFIG_BRCMFMAC_SDIO=y
-
-##
-## file: drivers/net/wireless/cisco/Kconfig
-##
-CONFIG_AIRO_CS=m
-
-##
-## file: drivers/net/wireless/intersil/orinoco/Kconfig
-##
-CONFIG_HERMES=m
-CONFIG_PLX_HERMES=m
-CONFIG_TMD_HERMES=m
-CONFIG_PCI_HERMES=m
-CONFIG_PCMCIA_HERMES=m
-
-##
-## file: drivers/net/wireless/legacy/Kconfig
-##
-CONFIG_PCMCIA_RAYCS=m
-CONFIG_PCMCIA_WL3501=m
 
 ##
 ## file: drivers/net/wireless/marvell/mwifiex/Kconfig
@@ -1353,11 +1327,6 @@ CONFIG_MWIFIEX=m
 CONFIG_MWIFIEX_SDIO=m
 CONFIG_MWIFIEX_PCIE=m
 CONFIG_MWIFIEX_USB=m
-
-##
-## file: drivers/net/wireless/zydas/Kconfig
-##
-CONFIG_USB_ZD1201=m
 
 ##
 ## file: drivers/nfc/Kconfig
@@ -1741,11 +1710,6 @@ CONFIG_RTLLIB_CRYPTO_WEP=m
 CONFIG_RTL8192E=m
 
 ##
-## file: drivers/staging/rtl8192u/Kconfig
-##
-CONFIG_RTL8192U=m
-
-##
 ## file: drivers/staging/rts5208/Kconfig
 ##
 CONFIG_RTS5208=m
@@ -1927,9 +1891,6 @@ CONFIG_FB_VESA=y
 CONFIG_FB_EFI=y
 CONFIG_FB_N411=m
 CONFIG_FB_HGA=m
-CONFIG_FB_LE80578=m
-CONFIG_FB_CARILLO_RANCH=m
-# CONFIG_FB_INTEL is not set
 CONFIG_FB_MATROX=m
 CONFIG_FB_MATROX_MILLENIUM=y
 CONFIG_FB_MATROX_MYSTIQUE=y
@@ -2267,7 +2228,7 @@ CONFIG_SND_SOC_INTEL_SOF_ES8336_MACH=m
 CONFIG_SND_SOC_INTEL_SOF_NAU8825_MACH=m
 CONFIG_SND_SOC_INTEL_CML_LP_DA7219_MAX98357A_MACH=m
 CONFIG_SND_SOC_INTEL_SOF_CML_RT1011_RT5682_MACH=m
-CONFIG_SND_SOC_INTEL_SOF_DA7219_MAX98373_MACH=m
+CONFIG_SND_SOC_INTEL_SOF_DA7219_MACH=m
 CONFIG_SND_SOC_INTEL_SOF_SSP_AMP_MACH=m
 CONFIG_SND_SOC_INTEL_SOUNDWIRE_SOF_MACH=m
 

@@ -888,6 +888,7 @@ struct fuse_mount {
 
 	/* Entry on fc->mounts */
 	struct list_head fc_entry;
+	struct rcu_head rcu;
 };
 
 static inline struct fuse_mount *get_fuse_mount_super(struct super_block *sb)
@@ -939,7 +940,6 @@ static inline bool fuse_stale_inode(const struct inode *inode, int generation,
 
 static inline void fuse_make_bad(struct inode *inode)
 {
-	remove_inode_hash(inode);
 	set_bit(FUSE_I_BAD, &get_fuse_inode(inode)->state);
 }
 
@@ -1299,7 +1299,7 @@ ssize_t fuse_getxattr(struct inode *inode, const char *name, void *value,
 		      size_t size);
 ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size);
 int fuse_removexattr(struct inode *inode, const char *name);
-extern const struct xattr_handler *fuse_xattr_handlers[];
+extern const struct xattr_handler * const fuse_xattr_handlers[];
 
 struct posix_acl;
 struct posix_acl *fuse_get_inode_acl(struct inode *inode, int type, bool rcu);

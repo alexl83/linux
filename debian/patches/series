@@ -1,7 +1,6 @@
 # Disable features broken by exclusion of upstream files
 debian/dfsg/arch-powerpc-platforms-8xx-ucode-disable.patch
 debian/dfsg/drivers-media-dvb-dvb-usb-af9005-disable.patch
-debian/dfsg/drivers-net-appletalk-cops.patch
 debian/dfsg/video-remove-nvidiafb-and-rivafb.patch
 debian/dfsg/documentation-fix-broken-link-to-cipso-draft.patch
 
@@ -9,8 +8,6 @@ debian/dfsg/documentation-fix-broken-link-to-cipso-draft.patch
 debian/version.patch
 debian/uname-version-timestamp.patch
 debian/kernelvariables.patch
-debian/ia64-hardcode-arch-script-output.patch
-debian/mips-disable-werror.patch
 debian/mips-boston-disable-its.patch
 debian/mips-ieee754-relaxed.patch
 debian/arch-sh4-fix-uimage-build.patch
@@ -77,11 +74,11 @@ bugfix/alpha/alpha-fix-missing-symbol-versions-for-str-n-cat-cpy.patch
 # Arch features
 features/x86/x86-memtest-WARN-if-bad-RAM-found.patch
 features/x86/x86-make-x32-syscall-support-conditional.patch
+features/arm64/arm64-dynamically-allocate-cpumasks-and-increase-supported-cpus-to-512.patch
 
 # Miscellaneous bug fixes
 bugfix/all/disable-some-marvell-phys.patch
 bugfix/all/fs-add-module_softdep-declarations-for-hard-coded-cr.patch
-debian/Revert-docs-kernel_feat.py-fix-potential-command-inj.patch
 
 # Miscellaneous features
 
@@ -99,6 +96,8 @@ features/all/db-mok-keyring/trust-machine-keyring-by-default.patch
 # Security fixes
 debian/i386-686-pae-pci-set-pci-nobios-by-default.patch
 debian/ntfs-mark-it-as-broken.patch
+bugfix/all/tipc-fix-UAF-in-error-path.patch
+bugfix/all/tipc-fix-a-possible-memleak-in-tipc_buf_append.patch
 
 # Fix exported symbol versions
 bugfix/all/module-disable-matching-missing-version-crc.patch
