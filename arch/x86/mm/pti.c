@@ -6,7 +6,7 @@
  *
  *	https://github.com/IAIK/KAISER
  *
- * The original work was written by and and signed off by for the Linux
+ * The original work was written by and signed off by for the Linux
  * kernel by:
  *
  *   Signed-off-by: Richard Fellner <richard.fellner@student.tugraz.at>
@@ -217,7 +217,7 @@ static pmd_t *pti_user_pagetable_walk_pmd(unsigned long address)
 
 	pud = pud_offset(p4d, address);
 	/* The user page tables do not use large mappings: */
-	if (pud_large(*pud)) {
+	if (pud_leaf(*pud)) {
 		WARN_ON(1);
 		return NULL;
 	}

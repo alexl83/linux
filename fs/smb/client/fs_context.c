@@ -37,7 +37,7 @@
 #include "rfc1002pdu.h"
 #include "fs_context.h"
 
-static DEFINE_MUTEX(cifs_mount_mutex);
+DEFINE_MUTEX(cifs_mount_mutex);
 
 static const match_table_t cifs_smb_version_tokens = {
 	{ Smb_1, SMB1_VERSION_STRING },
@@ -139,6 +139,7 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_u32("dir_mode", Opt_dirmode),
 	fsparam_u32("port", Opt_port),
 	fsparam_u32("min_enc_offload", Opt_min_enc_offload),
+	fsparam_u32("retrans", Opt_retrans),
 	fsparam_u32("esize", Opt_min_enc_offload),
 	fsparam_u32("bsize", Opt_blocksize),
 	fsparam_u32("rasize", Opt_rasize),
@@ -714,6 +715,16 @@ static int smb3_fs_context_validate(struct fs_context *fc)
 	/* set the port that we got earlier */
 	cifs_set_port((struct sockaddr *)&ctx->dstaddr, ctx->port);
 
+	if (ctx->uid_specified && !ctx->forceuid_specified) {
+		ctx->override_uid = 1;
+		pr_notice("enabling forceuid mount option implicitly because uid= option is specified\n");
+	}
+
+	if (ctx->gid_specified && !ctx->forcegid_specified) {
+		ctx->override_gid = 1;
+		pr_notice("enabling forcegid mount option implicitly because gid= option is specified\n");
+	}
+
 	if (ctx->override_uid && !ctx->uid_specified) {
 		ctx->override_uid = 0;
 		pr_notice("ignoring forceuid mount option specified with no uid= option\n");
@@ -752,9 +763,9 @@ static int smb3_get_tree(struct fs_context *fc)
 
 	if (err)
 		return err;
-	mutex_lock(&cifs_mount_mutex);
+	cifs_mount_lock();
 	ret = smb3_get_tree_common(fc);
-	mutex_unlock(&cifs_mount_mutex);
+	cifs_mount_unlock();
 	return ret;
 }
 
@@ -983,12 +994,14 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 			ctx->override_uid = 0;
 		else
 			ctx->override_uid = 1;
+		ctx->forceuid_specified = true;
 		break;
 	case Opt_forcegid:
 		if (result.negated)
 			ctx->override_gid = 0;
 		else
 			ctx->override_gid = 1;
+		ctx->forcegid_specified = true;
 		break;
 	case Opt_perm:
 		if (result.negated)
@@ -1080,6 +1093,9 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		break;
 	case Opt_min_enc_offload:
 		ctx->min_offload = result.uint_32;
+		break;
+	case Opt_retrans:
+		ctx->retrans = result.uint_32;
 		break;
 	case Opt_blocksize:
 		/*
@@ -1646,6 +1662,8 @@ int smb3_init_fs_context(struct fs_context *fc)
 
 	ctx->backupuid_specified = false; /* no backup intent for a user */
 	ctx->backupgid_specified = false; /* no backup intent for a group */
+
+	ctx->retrans = 1;
 
 /*
  *	short int override_uid = -1;

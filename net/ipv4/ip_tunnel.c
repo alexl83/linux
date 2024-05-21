@@ -1298,6 +1298,7 @@ int ip_tunnel_init(struct net_device *dev)
 
 	if (tunnel->collect_md)
 		netif_keep_dst(dev);
+	netdev_lockdep_set_classes(dev);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_init);
@@ -1325,4 +1326,5 @@ void ip_tunnel_setup(struct net_device *dev, unsigned int net_id)
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_setup);
 
+MODULE_DESCRIPTION("IPv4 tunnel implementation library");
 MODULE_LICENSE("GPL");

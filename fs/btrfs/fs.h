@@ -188,6 +188,7 @@ enum {
 	BTRFS_MOUNT_IGNOREBADROOTS		= (1UL << 27),
 	BTRFS_MOUNT_IGNOREDATACSUMS		= (1UL << 28),
 	BTRFS_MOUNT_NODISCARD			= (1UL << 29),
+	BTRFS_MOUNT_NOSPACECACHE		= (1UL << 30),
 };
 
 /*
@@ -398,7 +399,8 @@ struct btrfs_fs_info {
 	struct extent_io_tree excluded_extents;
 
 	/* logical->physical extent mapping */
-	struct extent_map_tree mapping_tree;
+	struct rb_root_cached mapping_tree;
+	rwlock_t mapping_tree_lock;
 
 	/*
 	 * Block reservation for extent, checksum, root tree and delayed dir
@@ -827,6 +829,17 @@ struct btrfs_fs_info {
 #endif
 };
 
+#define page_to_inode(_page)	(BTRFS_I(_Generic((_page),			\
+					  struct page *: (_page))->mapping->host))
+#define folio_to_inode(_folio)	(BTRFS_I(_Generic((_folio),			\
+					  struct folio *: (_folio))->mapping->host))
+
+#define page_to_fs_info(_page)	 (page_to_inode(_page)->root->fs_info)
+#define folio_to_fs_info(_folio) (folio_to_inode(_folio)->root->fs_info)
+
+#define inode_to_fs_info(_inode) (BTRFS_I(_Generic((_inode),			\
+					   struct inode *: (_inode)))->root->fs_info)
+
 static inline u64 btrfs_get_fs_generation(const struct btrfs_fs_info *fs_info)
 {
 	return READ_ONCE(fs_info->generation);
@@ -959,20 +972,6 @@ void __btrfs_clear_fs_compat_ro(struct btrfs_fs_info *fs_info, u64 flag,
 #define btrfs_raw_test_opt(o, opt)	((o) & BTRFS_MOUNT_##opt)
 #define btrfs_test_opt(fs_info, opt)	((fs_info)->mount_opt & \
 					 BTRFS_MOUNT_##opt)
-
-#define btrfs_set_and_info(fs_info, opt, fmt, args...)			\
-do {									\
-	if (!btrfs_test_opt(fs_info, opt))				\
-		btrfs_info(fs_info, fmt, ##args);			\
-	btrfs_set_opt(fs_info->mount_opt, opt);				\
-} while (0)
-
-#define btrfs_clear_and_info(fs_info, opt, fmt, args...)		\
-do {									\
-	if (btrfs_test_opt(fs_info, opt))				\
-		btrfs_info(fs_info, fmt, ##args);			\
-	btrfs_clear_opt(fs_info->mount_opt, opt);			\
-} while (0)
 
 static inline int btrfs_fs_closing(struct btrfs_fs_info *fs_info)
 {
