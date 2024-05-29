@@ -1,6 +1,6 @@
 #!/bin/sh -e
 
-version=6.8.9-amd64
+version=6.8.11-rt-arm64
 image_path=/boot/vmlinuz-$version
 
 rm -f /lib/modules/$version/.fresh-install
